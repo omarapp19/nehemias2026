@@ -1,0 +1,82 @@
+services:
+  # ─────────────── Base de datos ───────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nehemias}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cambia_esta_clave}
+      POSTGRES_DB: ${POSTGRES_DB:-nehemias}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    # Solo accesible desde el propio servidor (no expuesto a internet).
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nehemias} -d ${POSTGRES_DB:-nehemias}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - nehemias
+
+  # ─────────────── API (Express) ───────────────
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      API_PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nehemias}:${POSTGRES_PASSWORD:-cambia_esta_clave}@db:5432/${POSTGRES_DB:-nehemias}?schema=public
+      JWT_SECRET: ${JWT_SECRET:?define JWT_SECRET en el .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      UPLOADS_DIR: /data/uploads
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-8}
+      # Datos del admin inicial (los usa el seed)
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@nehemias.org}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-cambia_esta_clave_admin}
+      SEED_ADMIN_NAME: ${SEED_ADMIN_NAME:-Coordinación Nehemías}
+    volumes:
+      - uploads_data:/data/uploads
+    # Solo localhost: Nginx (en el host) hace de proxy. No expuesto a internet.
+    ports:
+      - "127.0.0.1:${API_PORT:-4000}:4000"
+    networks:
+      - nehemias
+
+  # ─────────────── Web (Next.js) ───────────────
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # La URL pública del API se incrusta en el build del navegador.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NODE_ENV: production
+      # El servidor de Next (RSC) habla con el API por la red interna de Docker.
+      API_INTERNAL_URL: http://api:4000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    # Solo localhost: Nginx (en el host) hace de proxy. No expuesto a internet.
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
+    networks:
+      - nehemias
+
+volumes:
+  db_data:
+  uploads_data:
+
+networks:
+  nehemias:
+    driver: bridge

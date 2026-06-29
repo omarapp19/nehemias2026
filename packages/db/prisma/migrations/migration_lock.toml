@@ -1,0 +1,3 @@
+# Por favor no edites este archivo manualmente.
+# Lo usa Prisma Migrate para saber qué motor de base de datos se usó.
+provider = "postgresql"

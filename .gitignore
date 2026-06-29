@@ -1,0 +1,31 @@
+# Dependencias
+node_modules/
+.pnpm-store/
+
+# Builds
+dist/
+.next/
+out/
+build/
+*.tsbuildinfo
+
+# Turbo
+.turbo/
+
+# Entornos
+.env
+.env.local
+.env.*.local
+
+# Prisma
+packages/db/prisma/*.db
+
+# Archivos subidos (en local; en prod van a un volumen)
+uploads/
+apps/api/uploads/
+
+# Logs y sistema
+*.log
+npm-debug.log*
+.DS_Store
+coverage/

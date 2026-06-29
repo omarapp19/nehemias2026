@@ -1,0 +1,12 @@
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+.git
+.gitignore
+**/*.log
+.env
+.env.*
+uploads
+README.md
+DEPLOY.md

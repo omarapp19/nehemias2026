@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-ink font-sans antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Foco visible y consistente para accesibilidad por teclado. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-focus ring-offset-2 ring-offset-background;
+  }
+
+  ::selection {
+    background: rgb(var(--color-brand-soft));
+    color: rgb(var(--color-brand-strong));
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+}
+
+@layer utilities {
+  /* Cifras alineadas verticalmente para datos financieros. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Respeta la preferencia de menos movimiento. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

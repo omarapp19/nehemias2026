@@ -1,0 +1,217 @@
+// ──────────────────────────────────────────────────────────────────────────
+//  Proyecto Nehemías — modelo de datos
+//  Principio: las cifras públicas se CALCULAN (no se escriben a mano).
+//  El balance se deriva siempre de transacciones verificadas.
+//  Cada entidad sensible separa lo público de lo privado.
+// ──────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Moneda: doble balance USD / VES, sin conversiones (se contabilizan por separado).
+enum Currency {
+  USD
+  VES
+}
+
+// ---------- USUARIOS ADMIN ----------
+model AdminUser {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         AdminRole @default(coordinator)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+}
+
+enum AdminRole {
+  admin
+  coordinator
+}
+
+// ---------- DONACIONES ----------
+enum DonationType {
+  financial
+  in_kind
+}
+
+enum DonationStatus {
+  pending
+  verified
+  rejected
+}
+
+enum DonationMethod {
+  pago_movil
+  transfer
+  cash
+  other
+}
+
+model Donation {
+  id     String         @id @default(uuid())
+  type   DonationType
+  status DonationStatus @default(pending)
+
+  // financiero
+  amount   Decimal?        @db.Decimal(14, 2)
+  currency Currency        @default(USD)
+  method   DonationMethod?
+
+  // donante (parte privada: contacto; parte pública: nombre o "Anónimo")
+  donorName    String?
+  isAnonymous  Boolean @default(false)
+  donorContact String? // PRIVADO, nunca público
+  message      String? // opcional, mensaje público corto
+
+  // comprobante del donante (PRIVADO por defecto)
+  proofUrl String?
+
+  // origen del registro
+  declaredByPublic Boolean   @default(false) // true = camino B (lo declaró el externo)
+  verifiedById     String? // admin que aprobó
+  verifiedAt       DateTime?
+
+  // si es en especie, genera ítems de inventario al verificarse
+  inKindItems InKindItem[]
+
+  donatedAt DateTime @default(now()) // fecha del aporte
+  createdAt DateTime @default(now())
+
+  @@index([status])
+  @@index([type])
+  @@index([donatedAt])
+}
+
+// líneas de una donación en especie
+model InKindItem {
+  id          String   @id @default(uuid())
+  donation    Donation @relation(fields: [donationId], references: [id], onDelete: Cascade)
+  donationId  String
+  supplyId    String? // se enlaza al insumo del catálogo
+  description String
+  quantity    Decimal  @db.Decimal(12, 2)
+  unit        String // unidades, kg, cajas...
+}
+
+// ---------- EGRESOS / COMPRAS ----------
+model Expense {
+  id          String   @id @default(uuid())
+  description String
+  amount      Decimal  @db.Decimal(14, 2)
+  currency    Currency @default(USD)
+  category    String? // medicinas, alimentos, logística...
+  supplier    String?
+  invoiceUrl  String? // factura PÚBLICA (comprobante de auditoría)
+
+  // si la compra es de insumos, alimenta el inventario
+  createsStock Boolean  @default(false)
+  spentAt      DateTime @default(now())
+  createdById  String?
+  createdAt    DateTime @default(now())
+
+  @@index([spentAt])
+}
+
+// ---------- INVENTARIO ----------
+enum SupplyOrigin {
+  purchased // comprado con donación financiera
+  donated // donado en especie
+}
+
+model Supply {
+  id           String       @id @default(uuid())
+  name         String
+  category     String? // medicina, alimento, higiene...
+  unit         String // unidades, kg, cajas
+  currentStock Decimal      @db.Decimal(12, 2) @default(0)
+  minThreshold Decimal      @db.Decimal(12, 2) @default(0) // matriz de prioridades
+  isUrgent     Boolean      @default(false) // derivado: stock < minThreshold
+  origin       SupplyOrigin?
+  movements    StockMovement[]
+  createdAt    DateTime     @default(now())
+
+  @@index([isUrgent])
+}
+
+enum MovementType {
+  in
+  out
+  adjust
+}
+
+model StockMovement {
+  id        String       @id @default(uuid())
+  supply    Supply       @relation(fields: [supplyId], references: [id], onDelete: Cascade)
+  supplyId  String
+  type      MovementType
+  quantity  Decimal      @db.Decimal(12, 2)
+  reason    String? // 'compra', 'donación', 'entrega'
+  refType   String? // 'expense' | 'donation' | 'delivery'
+  refId     String?
+  createdAt DateTime     @default(now())
+
+  @@index([supplyId])
+}
+
+// ---------- FRENTES DE ATENCIÓN ----------
+model Frente {
+  id          String     @id @default(uuid())
+  name        String // 'La Guaira', 'Carayaca'...
+  type        String // comunidad | refugio | desplazados
+  location    String?
+  description String?
+  deliveries  Delivery[]
+  createdAt   DateTime   @default(now())
+}
+
+// ---------- BITÁCORA DE ENTREGAS ----------
+model Delivery {
+  id          String          @id @default(uuid())
+  frente      Frente          @relation(fields: [frenteId], references: [id])
+  frenteId    String
+  title       String
+  notes       String?
+  items       DeliveryItem[]
+  photos      DeliveryPhoto[]
+  deliveredAt DateTime        @default(now())
+  createdById String?
+  createdAt   DateTime        @default(now())
+
+  @@index([deliveredAt])
+  @@index([frenteId])
+}
+
+model DeliveryItem {
+  id          String   @id @default(uuid())
+  delivery    Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  deliveryId  String
+  supplyId    String?
+  description String
+  quantity    Decimal  @db.Decimal(12, 2)
+  unit        String
+}
+
+model DeliveryPhoto {
+  id         String   @id @default(uuid())
+  delivery   Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  deliveryId String
+  url        String
+  caption    String?
+}
+
+// ---------- DATOS DE CAPTACIÓN (público) ----------
+model PaymentInfo {
+  id        String  @id @default(uuid())
+  label     String // 'Pago Móvil', 'Cuenta BDV'...
+  details   String // texto a mostrar
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+}
