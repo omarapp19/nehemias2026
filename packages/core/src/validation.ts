@@ -41,21 +41,22 @@ export const itemLineSchema = z.object({
 });
 
 // — Camino B: el público declara su donación (entra como `pending`) —
-export const declareDonationSchema = z
-  .object({
-    type: donationTypeEnum.default("financial"),
-    amount: z.coerce.number().positive("El monto debe ser mayor que cero.").optional(),
-    currency: currencyEnum.default("USD"),
-    method: donationMethodEnum.optional(),
-    referenceNumber: z.string().max(60).optional(),
-    exchangeRate: z.coerce.number().positive().optional(),
-    donorName: z.string().max(120).optional(),
-    isAnonymous: zBool(false),
-    donorContact: z.string().max(160).optional(), // PRIVADO
-    message: z.string().max(280).optional(),
-    donatedAt: z.coerce.date().optional(),
-    inKindItems: z.array(itemLineSchema).optional(),
-  })
+export const declareDonationBaseSchema = z.object({
+  type: donationTypeEnum.default("financial"),
+  amount: z.coerce.number().positive("El monto debe ser mayor que cero.").optional(),
+  currency: currencyEnum.default("USD"),
+  method: donationMethodEnum.optional(),
+  referenceNumber: z.string().max(60).optional(),
+  exchangeRate: z.coerce.number().positive().optional(),
+  donorName: z.string().max(120).optional(),
+  isAnonymous: zBool(false),
+  donorContact: z.string().max(160).optional(), // PRIVADO
+  message: z.string().max(280).optional(),
+  donatedAt: z.coerce.date().optional(),
+  inKindItems: z.array(itemLineSchema).optional(),
+});
+
+export const declareDonationSchema = declareDonationBaseSchema
   .refine((d) => d.type !== "financial" || (d.amount && d.amount > 0), {
     message: "Indica el monto donado.",
     path: ["amount"],
@@ -74,6 +75,13 @@ export const adminCreateDonationSchema = declareDonationSchema.and(
 );
 export type AdminCreateDonationInput = z.infer<typeof adminCreateDonationSchema>;
 
+export const adminUpdateDonationSchema = declareDonationBaseSchema.merge(
+  z.object({
+    markVerified: zBool(true).optional(),
+  })
+).partial();
+export type AdminUpdateDonationInput = z.infer<typeof adminUpdateDonationSchema>;
+
 // — Verificar / rechazar donación —
 export const reviewDonationSchema = z.object({
   action: z.enum(["verify", "reject"]),
@@ -81,32 +89,35 @@ export const reviewDonationSchema = z.object({
 export type ReviewDonationInput = z.infer<typeof reviewDonationSchema>;
 
 // — Egreso / compra —
-export const expenseSchema = z
-  .object({
-    description: z.string().min(2, "Describe la compra."),
-    amount: z.coerce.number().positive("El monto debe ser mayor que cero."),
-    currency: currencyEnum.default("USD"),
-    category: z.string().max(60).optional(),
-    supplier: z.string().max(120).optional(),
-    invoiceNumber: z.string().max(60).optional(),
-    spentAt: z.coerce.date().optional(),
-    createsStock: zBool(false),
-    // Si alimenta inventario:
-    stockSupplyName: z.string().max(120).optional(),
-    stockQuantity: z.coerce.number().positive().optional(),
-    stockUnit: z.string().max(40).optional(),
-    stockCategory: z.string().max(60).optional(),
-  })
-  .refine(
-    (e) =>
-      !e.createsStock ||
-      (e.stockSupplyName && e.stockQuantity && e.stockUnit),
-    {
-      message: "Para sumar al inventario indica insumo, cantidad y unidad.",
-      path: ["stockSupplyName"],
-    },
-  );
+export const expenseBaseSchema = z.object({
+  description: z.string().min(2, "Describe la compra."),
+  amount: z.coerce.number().positive("El monto debe ser mayor que cero."),
+  currency: currencyEnum.default("USD"),
+  category: z.string().max(60).optional(),
+  supplier: z.string().max(120).optional(),
+  invoiceNumber: z.string().max(60).optional(),
+  spentAt: z.coerce.date().optional(),
+  createsStock: zBool(false),
+  // Si alimenta inventario:
+  stockSupplyName: z.string().max(120).optional(),
+  stockQuantity: z.coerce.number().positive().optional(),
+  stockUnit: z.string().max(40).optional(),
+  stockCategory: z.string().max(60).optional(),
+});
+
+export const expenseSchema = expenseBaseSchema.refine(
+  (e) =>
+    !e.createsStock ||
+    (e.stockSupplyName && e.stockQuantity && e.stockUnit),
+  {
+    message: "Para sumar al inventario indica insumo, cantidad y unidad.",
+    path: ["stockSupplyName"],
+  },
+);
 export type ExpenseInput = z.infer<typeof expenseSchema>;
+
+export const expenseUpdateSchema = expenseBaseSchema.partial();
+export type ExpenseUpdateInput = z.infer<typeof expenseUpdateSchema>;
 
 // — Insumo (inventario) —
 export const supplySchema = z.object({

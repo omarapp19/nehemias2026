@@ -22,14 +22,10 @@ import { fileUrl } from "@/lib/config";
 
 export default function AdminEgresosPage() {
   const [items, setItems] = useState<PublicExpense[]>([]);
-  const [estado, setEstado] = useState<"idle" | "enviando">("idle");
-  const [error, setError] = useState("");
-  const [fileName, setFileName] = useState("");
   const [modalUrl, setModalUrl] = useState<string | null>(null);
   const [modalLabel, setModalLabel] = useState<string>("");
   const [mostrarForm, setMostrarForm] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [step, setStep] = useState(1);
   const [editando, setEditando] = useState<PublicExpense | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -37,19 +33,6 @@ export default function AdminEgresosPage() {
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  // States for currency calculator
-  const [usdVal, setUsdVal] = useState<string>("");
-  const [vesVal, setVesVal] = useState<string>("");
-  const [rateInput, setRateInput] = useState<string>("36.00");
-  const [defaultRate, setDefaultRate] = useState<string>("36.00");
-  const [primaryCurrency, setPrimaryCurrency] = useState<"USD" | "VES">("USD");
-  const [spentAt, setSpentAt] = useState<string>(() => {
-    const d = new Date();
-    const offset = d.getTimezoneOffset();
-    const localDate = new Date(d.getTime() - offset * 60 * 1000);
-    return localDate.toISOString().split("T")[0];
-  });
 
   useEffect(() => {
     if (modalUrl || mostrarForm) {
@@ -81,108 +64,7 @@ export default function AdminEgresosPage() {
 
   useEffect(() => {
     cargar();
-    apiGet("/public/balances")
-      .then((r) => {
-        if (r.exchangeRate) {
-          const rateStr = String(r.exchangeRate);
-          setRateInput(rateStr);
-          setDefaultRate(rateStr);
-        }
-      })
-      .catch(() => {});
   }, []);
-
-  const handleUsdChange = (val: string) => {
-    setUsdVal(val);
-    setPrimaryCurrency("USD");
-    const numUsd = parseFloat(val);
-    const rate = parseFloat(rateInput);
-    if (!isNaN(numUsd) && !isNaN(rate) && rate > 0) {
-      setVesVal((numUsd * rate).toFixed(2));
-    } else {
-      setVesVal("");
-    }
-  };
-
-  const handleVesChange = (val: string) => {
-    setVesVal(val);
-    setPrimaryCurrency("VES");
-    const numVes = parseFloat(val);
-    const rate = parseFloat(rateInput);
-    if (!isNaN(numVes) && !isNaN(rate) && rate > 0) {
-      setUsdVal((numVes / rate).toFixed(2));
-    } else {
-      setUsdVal("");
-    }
-  };
-
-  const handleRateChange = (val: string) => {
-    setRateInput(val);
-    const rate = parseFloat(val);
-    if (!isNaN(rate) && rate > 0) {
-      if (primaryCurrency === "USD" && usdVal) {
-        const numUsd = parseFloat(usdVal);
-        if (!isNaN(numUsd)) {
-          setVesVal((numUsd * rate).toFixed(2));
-        }
-      } else if (primaryCurrency === "VES" && vesVal) {
-        const numVes = parseFloat(vesVal);
-        if (!isNaN(numVes)) {
-          setUsdVal((numVes / rate).toFixed(2));
-        }
-      }
-    }
-  };
-
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setEstado("enviando");
-    setError("");
-    const form = e.currentTarget;
-    const data = new FormData(form);
-
-    const usdValNum = parseFloat(usdVal);
-    const vesValNum = parseFloat(vesVal);
-
-    if (primaryCurrency === "USD") {
-      if (isNaN(usdValNum) || usdValNum <= 0) {
-        setError("Debes ingresar un monto válido en USD.");
-        setEstado("idle");
-        return;
-      }
-      data.set("amount", String(usdValNum));
-      data.set("currency", "USD");
-    } else {
-      if (isNaN(vesValNum) || vesValNum <= 0) {
-        setError("Debes ingresar un monto válido en Bs.");
-        setEstado("idle");
-        return;
-      }
-      data.set("amount", String(vesValNum));
-      data.set("currency", "VES");
-    }
-
-    data.set("createsStock", "false");
-
-    try {
-      await apiCrearEgreso(data);
-      form.reset();
-      setStep(1);
-      setUsdVal("");
-      setVesVal("");
-      setFileName("");
-      setEstado("idle");
-      const d = new Date();
-      const offset = d.getTimezoneOffset();
-      const localDate = new Date(d.getTime() - offset * 60 * 1000);
-      setSpentAt(localDate.toISOString().split("T")[0]);
-      setMostrarForm(false);
-      cargar();
-    } catch (err) {
-      setError((err as Error).message || "No se pudo registrar la compra.");
-      setEstado("idle");
-    }
-  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -244,179 +126,6 @@ export default function AdminEgresosPage() {
                 onDone={() => { setEditando(null); cargar(); }}
                 onCancel={() => setEditando(null)}
               />
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-        <div className="fixed inset-0 z-50 flex justify-center items-start overflow-y-auto bg-black/60 backdrop-blur-sm p-4 sm:p-6 md:p-8">
-          <div className="relative max-w-2xl w-full bg-white rounded-2xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto animate-in zoom-in-95 duration-200">
-            {/* Cabecera del Modal */}
-            <div className="flex items-center justify-between p-5 border-b border-border/60 bg-surface-sunken/30">
-              <div>
-                <h3 className="font-serif text-lg font-bold text-ink leading-tight">Registrar una compra (Egreso)</h3>
-              </div>
-              <button
-                onClick={() => setMostrarForm(false)}
-                className="p-1.5 rounded-full text-ink-muted hover:bg-surface-sunken hover:text-ink transition-colors cursor-pointer"
-                aria-label="Cerrar"
-              >
-                <IconX size={20} />
-              </button>
-            </div>
-
-            {/* Contenido del Modal (scrollable) */}
-            <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
-              <form onSubmit={onSubmit}>
-                {/* Paso 1: Detalles de la Compra */}
-                <div className={step === 1 ? "grid gap-5 sm:grid-cols-2" : "hidden"}>
-                  <div className="sm:col-span-2 flex justify-between items-center border-b border-border/60 pb-2 mb-2">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-brand/85">
-                      Paso 1: Identificación del Egreso
-                    </h4>
-                    <span className="text-[10px] font-bold bg-brand-soft/20 text-brand px-2 py-0.5 rounded-full">Paso 1 de 2</span>
-                  </div>
-
-                  <Field label="Descripción / Rubro" htmlFor="desc" required className="sm:col-span-2">
-                    <Input id="desc" name="description" placeholder="Ej: Compra de medicinas para sector B" required />
-                  </Field>
-
-                  <Field label="# Factura (Nro.)" htmlFor="invoiceNum">
-                    <Input id="invoiceNum" name="invoiceNumber" placeholder="Ej: 004812" />
-                  </Field>
-
-                  <Field label="Fecha" htmlFor="fecha" required>
-                    <Input
-                      id="fecha"
-                      name="spentAt"
-                      type="date"
-                      value={spentAt}
-                      onChange={(e) => setSpentAt(e.target.value)}
-                      required
-                    />
-                  </Field>
-
-                  <div className="sm:col-span-2 pt-4 border-t border-border/40 flex justify-end gap-3">
-                    <Button type="button" variant="secondary" onClick={() => setMostrarForm(false)}>
-                      Cancelar
-                    </Button>
-                    <Button type="button" onClick={() => setStep(2)} className="shadow-md">
-                      Siguiente
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Paso 2: Montos y Factura */}
-                <div className={step === 2 ? "grid gap-5 sm:grid-cols-2" : "hidden"}>
-                  <div className="sm:col-span-2 flex justify-between items-center border-b border-border/60 pb-2 mb-2">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-brand/85">
-                      Paso 2: Monto y Comprobante
-                    </h4>
-                    <span className="text-[10px] font-bold bg-brand-soft/20 text-brand px-2 py-0.5 rounded-full">Paso 2 de 2</span>
-                  </div>
-
-                  <Field label="Monto en Dólares ($)" htmlFor="amountUsd">
-                    <div className="relative">
-                      <Input
-                        id="amountUsd"
-                        type="number"
-                        step="any"
-                        inputMode="decimal"
-                        value={usdVal}
-                        onChange={(e) => handleUsdChange(e.target.value)}
-                        placeholder="0.00"
-                        className={primaryCurrency === "USD" && usdVal ? "border-brand ring-1 ring-brand" : ""}
-                      />
-                      {primaryCurrency === "USD" && usdVal && (
-                        <span className="absolute right-3 top-2.5 text-[9px] bg-brand text-brand-contrast px-2 py-0.5 rounded-full font-bold select-none uppercase tracking-wider">
-                          Registro USD
-                        </span>
-                      )}
-                    </div>
-                  </Field>
-
-                  <Field label="Monto en Bolívares (Bs.)" htmlFor="amountVes">
-                    <div className="relative">
-                      <Input
-                        id="amountVes"
-                        type="number"
-                        step="any"
-                        inputMode="decimal"
-                        value={vesVal}
-                        onChange={(e) => handleVesChange(e.target.value)}
-                        placeholder="0.00"
-                        className={primaryCurrency === "VES" && vesVal ? "border-brand ring-1 ring-brand" : ""}
-                      />
-                      {primaryCurrency === "VES" && vesVal && (
-                        <span className="absolute right-3 top-2.5 text-[9px] bg-brand text-brand-contrast px-2 py-0.5 rounded-full font-bold select-none uppercase tracking-wider">
-                          Registro Bs.
-                        </span>
-                      )}
-                    </div>
-                  </Field>
-
-                  <Field label="Tasa BCV del día (VES/USD)" htmlFor="rate" className="sm:col-span-2">
-                    <div className="flex gap-2 items-center">
-                      <Input
-                        id="rate"
-                        type="number"
-                        step="any"
-                        inputMode="decimal"
-                        value={rateInput}
-                        onChange={(e) => handleRateChange(e.target.value)}
-                        placeholder="36.00"
-                        className="flex-1"
-                      />
-                      {rateInput !== defaultRate && (
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => handleRateChange(defaultRate)}
-                          className="shrink-0 font-bold"
-                        >
-                          Restaurar ({defaultRate})
-                        </Button>
-                      )}
-                    </div>
-                  </Field>
-
-                  {/* Factura Upload area */}
-                  <div className="sm:col-span-2">
-                    <span className="text-sm font-semibold text-ink block mb-2">Archivo de Factura o Comprobante (Público)</span>
-                    <label
-                      htmlFor="invoice"
-                      className="mt-1 flex flex-col items-center justify-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border-strong bg-background p-6 text-center text-ink-muted hover:bg-surface hover:border-brand/35 hover:text-brand transition-all duration-200 shadow-sm"
-                    >
-                      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-sunken text-ink-muted group-hover:text-brand transition-colors">
-                        <IconUpload size={18} />
-                      </span>
-                      <span className="text-sm font-semibold">{fileName || "Haz clic para subir foto o PDF de la factura"}</span>
-                      <span className="text-[10px] text-ink-subtle">Soporta imágenes y archivos PDF de hasta 8MB</span>
-                      <input
-                        id="invoice"
-                        name="invoice"
-                        type="file"
-                        accept="image/*,application/pdf"
-                        capture="environment"
-                        className="sr-only"
-                        onChange={(e) => setFileName(e.target.files?.[0]?.name ?? "")}
-                      />
-                    </label>
-                  </div>
-
-                  {error && <p className="text-sm text-danger sm:col-span-2 font-medium">{error}</p>}
-                  <div className="sm:col-span-2 pt-4 border-t border-border/45 flex justify-end gap-3">
-                    <Button type="button" variant="secondary" onClick={() => setStep(1)} disabled={estado === "enviando"}>
-                      Atrás
-                    </Button>
-                    <Button type="submit" disabled={estado === "enviando"} className="shadow-md">
-                      {estado === "enviando" ? "Guardando..." : "Registrar Compra"}
-                    </Button>
-                  </div>
-                </div>
-              </form>
             </div>
           </div>
         </div>,
@@ -556,3 +265,315 @@ export default function AdminEgresosPage() {
     </div>
   );
 }
+
+function EgresoForm({
+  onDone,
+  onCancel,
+  initialData,
+}: {
+  onDone: () => void;
+  onCancel: () => void;
+  initialData?: PublicExpense;
+}) {
+  const isEditing = !!initialData;
+  const [estado, setEstado] = useState<"idle" | "enviando">("idle");
+  const [error, setError] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [step, setStep] = useState(1);
+
+  // States for currency calculator
+  const [usdVal, setUsdVal] = useState<string>(() => {
+    if (initialData && initialData.currency === "USD") {
+      return String(initialData.amount);
+    }
+    return "";
+  });
+  const [vesVal, setVesVal] = useState<string>(() => {
+    if (initialData && initialData.currency === "VES") {
+      return String(initialData.amount);
+    }
+    return "";
+  });
+  const [rateInput, setRateInput] = useState<string>("36.00");
+  const [defaultRate, setDefaultRate] = useState<string>("36.00");
+  const [primaryCurrency, setPrimaryCurrency] = useState<"USD" | "VES">(() => {
+    return (initialData?.currency as "USD" | "VES") ?? "USD";
+  });
+  const [spentAt, setSpentAt] = useState<string>(() => {
+    if (initialData?.spentAt) {
+      return new Date(initialData.spentAt).toISOString().split("T")[0];
+    }
+    const d = new Date();
+    const offset = d.getTimezoneOffset();
+    const localDate = new Date(d.getTime() - offset * 60 * 1000);
+    return localDate.toISOString().split("T")[0];
+  });
+
+  useEffect(() => {
+    apiGet("/public/balances")
+      .then((r) => {
+        if (r.exchangeRate) {
+          const rateStr = String(r.exchangeRate);
+          setRateInput(rateStr);
+          setDefaultRate(rateStr);
+
+          // Calculate initial counter currency if editing
+          if (initialData) {
+            const rate = parseFloat(rateStr);
+            if (!isNaN(rate) && rate > 0) {
+              if (initialData.currency === "USD") {
+                setVesVal((initialData.amount * rate).toFixed(2));
+              } else {
+                setUsdVal((initialData.amount / rate).toFixed(2));
+              }
+            }
+          }
+        }
+      })
+      .catch(() => {});
+  }, [initialData]);
+
+  const handleUsdChange = (val: string) => {
+    setUsdVal(val);
+    setPrimaryCurrency("USD");
+    const numUsd = parseFloat(val);
+    const rate = parseFloat(rateInput);
+    if (!isNaN(numUsd) && !isNaN(rate) && rate > 0) {
+      setVesVal((numUsd * rate).toFixed(2));
+    } else {
+      setVesVal("");
+    }
+  };
+
+  const handleVesChange = (val: string) => {
+    setVesVal(val);
+    setPrimaryCurrency("VES");
+    const numVes = parseFloat(val);
+    const rate = parseFloat(rateInput);
+    if (!isNaN(numVes) && !isNaN(rate) && rate > 0) {
+      setUsdVal((numVes / rate).toFixed(2));
+    } else {
+      setUsdVal("");
+    }
+  };
+
+  const handleRateChange = (val: string) => {
+    setRateInput(val);
+    const rate = parseFloat(val);
+    if (!isNaN(rate) && rate > 0) {
+      if (primaryCurrency === "USD" && usdVal) {
+        const numUsd = parseFloat(usdVal);
+        if (!isNaN(numUsd)) {
+          setVesVal((numUsd * rate).toFixed(2));
+        }
+      } else if (primaryCurrency === "VES" && vesVal) {
+        const numVes = parseFloat(vesVal);
+        if (!isNaN(numVes)) {
+          setUsdVal((numVes / rate).toFixed(2));
+        }
+      }
+    }
+  };
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setEstado("enviando");
+    setError("");
+    const form = e.currentTarget;
+    const data = new FormData(form);
+
+    const usdValNum = parseFloat(usdVal);
+    const vesValNum = parseFloat(vesVal);
+
+    if (primaryCurrency === "USD") {
+      if (isNaN(usdValNum) || usdValNum <= 0) {
+        setError("Debes ingresar un monto válido en USD.");
+        setEstado("idle");
+        return;
+      }
+      data.set("amount", String(usdValNum));
+      data.set("currency", "USD");
+    } else {
+      if (isNaN(vesValNum) || vesValNum <= 0) {
+        setError("Debes ingresar un monto válido en Bs.");
+        setEstado("idle");
+        return;
+      }
+      data.set("amount", String(vesValNum));
+      data.set("currency", "VES");
+    }
+
+    data.set("createsStock", "false");
+
+    try {
+      if (isEditing) {
+        await apiActualizarEgreso(initialData.id, data);
+      } else {
+        await apiCrearEgreso(data);
+      }
+      form.reset();
+      setStep(1);
+      setUsdVal("");
+      setVesVal("");
+      setFileName("");
+      setEstado("idle");
+      onDone();
+    } catch (err) {
+      setError((err as Error).message || "No se pudo guardar la compra.");
+      setEstado("idle");
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit}>
+      {/* Paso 1: Detalles de la Compra */}
+      <div className={step === 1 ? "grid gap-5 sm:grid-cols-2" : "hidden"}>
+        <div className="sm:col-span-2 flex justify-between items-center border-b border-border/60 pb-2 mb-2">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-brand/85">
+            Paso 1: Identificación del Egreso
+          </h4>
+          <span className="text-[10px] font-bold bg-brand-soft/20 text-brand px-2 py-0.5 rounded-full">Paso 1 de 2</span>
+        </div>
+
+        <Field label="Descripción / Rubro" htmlFor="desc" required className="sm:col-span-2">
+          <Input id="desc" name="description" placeholder="Ej: Compra de medicinas para sector B" defaultValue={initialData?.description || ""} required />
+        </Field>
+
+        <Field label="# Factura (Nro.)" htmlFor="invoiceNum">
+          <Input id="invoiceNum" name="invoiceNumber" placeholder="Ej: 004812" defaultValue={initialData?.invoiceNumber || ""} />
+        </Field>
+
+        <Field label="Fecha" htmlFor="fecha" required>
+          <Input
+            id="fecha"
+            name="spentAt"
+            type="date"
+            value={spentAt}
+            onChange={(e) => setSpentAt(e.target.value)}
+            required
+          />
+        </Field>
+
+        <div className="sm:col-span-2 pt-4 border-t border-border/40 flex justify-end gap-3">
+          <Button type="button" variant="secondary" onClick={onCancel}>
+            Cancelar
+          </Button>
+          <Button type="button" onClick={() => setStep(2)} className="shadow-md">
+            Siguiente
+          </Button>
+        </div>
+      </div>
+
+      {/* Paso 2: Montos y Factura */}
+      <div className={step === 2 ? "grid gap-5 sm:grid-cols-2" : "hidden"}>
+        <div className="sm:col-span-2 flex justify-between items-center border-b border-border/60 pb-2 mb-2">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-brand/85">
+            Paso 2: Monto y Comprobante
+          </h4>
+          <span className="text-[10px] font-bold bg-brand-soft/20 text-brand px-2 py-0.5 rounded-full">Paso 2 de 2</span>
+        </div>
+
+        <Field label="Monto en Dólares ($)" htmlFor="amountUsd">
+          <div className="relative">
+            <Input
+              id="amountUsd"
+              type="number"
+              step="any"
+              inputMode="decimal"
+              value={usdVal}
+              onChange={(e) => handleUsdChange(e.target.value)}
+              placeholder="0.00"
+              className={primaryCurrency === "USD" && usdVal ? "border-brand ring-1 ring-brand" : ""}
+            />
+            {primaryCurrency === "USD" && usdVal && (
+              <span className="absolute right-3 top-2.5 text-[9px] bg-brand text-brand-contrast px-2 py-0.5 rounded-full font-bold select-none uppercase tracking-wider">
+                Registro USD
+              </span>
+            )}
+          </div>
+        </Field>
+
+        <Field label="Monto en Bolívares (Bs.)" htmlFor="amountVes">
+          <div className="relative">
+            <Input
+              id="amountVes"
+              type="number"
+              step="any"
+              inputMode="decimal"
+              value={vesVal}
+              onChange={(e) => handleVesChange(e.target.value)}
+              placeholder="0.00"
+              className={primaryCurrency === "VES" && vesVal ? "border-brand ring-1 ring-brand" : ""}
+            />
+            {primaryCurrency === "VES" && vesVal && (
+              <span className="absolute right-3 top-2.5 text-[9px] bg-brand text-brand-contrast px-2 py-0.5 rounded-full font-bold select-none uppercase tracking-wider">
+                Registro Bs.
+              </span>
+            )}
+          </div>
+        </Field>
+
+        <Field label="Tasa BCV del día (VES/USD)" htmlFor="rate" className="sm:col-span-2">
+          <div className="flex gap-2 items-center">
+            <Input
+              id="rate"
+              type="number"
+              step="any"
+              inputMode="decimal"
+              value={rateInput}
+              onChange={(e) => handleRateChange(e.target.value)}
+              placeholder="36.00"
+              className="flex-1"
+            />
+            {rateInput !== defaultRate && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => handleRateChange(defaultRate)}
+                className="shrink-0 font-bold"
+              >
+                Restaurar ({defaultRate})
+              </Button>
+            )}
+          </div>
+        </Field>
+
+        {/* Factura Upload area */}
+        <div className="sm:col-span-2">
+          <span className="text-sm font-semibold text-ink block mb-2">Archivo de Factura o Comprobante (Público)</span>
+          <label
+            htmlFor="invoice"
+            className="mt-1 flex flex-col items-center justify-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border-strong bg-background p-6 text-center text-ink-muted hover:bg-surface hover:border-brand/35 hover:text-brand transition-all duration-200 shadow-sm"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-sunken text-ink-muted group-hover:text-brand transition-colors">
+              <IconUpload size={18} />
+            </span>
+            <span className="text-sm font-semibold">{fileName || "Haz clic para subir foto o PDF de la factura"}</span>
+            <span className="text-[10px] text-ink-subtle">Soporta imágenes y archivos PDF de hasta 8MB</span>
+            <input
+              id="invoice"
+              name="invoice"
+              type="file"
+              accept="image/*,application/pdf"
+              capture="environment"
+              className="sr-only"
+              onChange={(e) => setFileName(e.target.files?.[0]?.name ?? "")}
+            />
+          </label>
+        </div>
+
+        {error && <p className="text-sm text-danger sm:col-span-2 font-medium">{error}</p>}
+        <div className="sm:col-span-2 pt-4 border-t border-border/45 flex justify-end gap-3">
+          <Button type="button" variant="secondary" onClick={() => setStep(1)} disabled={estado === "enviando"}>
+            Atrás
+          </Button>
+          <Button type="submit" disabled={estado === "enviando"} className="shadow-md">
+            {estado === "enviando" ? "Guardando..." : (isEditing ? "Guardar Cambios" : "Registrar Compra")}
+          </Button>
+        </div>
+      </div>
+    </form>
+  );
+}
+

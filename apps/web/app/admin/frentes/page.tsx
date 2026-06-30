@@ -3,13 +3,16 @@
 import { useEffect, useState } from "react";
 import { Button, Card, Field, Input, Select, Textarea, IconMapPin } from "@nehemias/ui";
 import type { PublicFrente } from "@nehemias/core";
-import { apiFrentes, apiCrearFrente, apiActualizarFrente } from "@/lib/admin-api";
+import { apiFrentes, apiCrearFrente, apiActualizarFrente, apiEliminarFrente } from "@/lib/admin-api";
 import { FRENTE_TIPO_LABEL } from "@/lib/labels";
 
 export default function AdminFrentesPage() {
   const [items, setItems] = useState<PublicFrente[]>([]);
   const [editId, setEditId] = useState<string | null>(null);
   const [formKey, setFormKey] = useState(0);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   function cargar() {
     apiFrentes()
@@ -18,12 +21,32 @@ export default function AdminFrentesPage() {
   }
   useEffect(cargar, []);
 
+  async function eliminar(id: string) {
+    setBusyId(id);
+    setError(null);
+    try {
+      await apiEliminarFrente(id);
+      setConfirmDeleteId(null);
+      cargar();
+    } catch (err) {
+      setError((err as Error).message || "No se pudo eliminar el frente.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div>
         <h1 className="font-serif text-3xl font-semibold text-ink">Frentes de atención</h1>
         <p className="mt-1 text-ink-muted">Comunidades, refugios y grupos de desplazados.</p>
       </div>
+
+      {error && (
+        <div className="bg-danger-soft/20 border border-danger/20 text-danger p-4 rounded-xl text-sm font-medium">
+          {error}
+        </div>
+      )}
 
       <FrenteForm
         key={formKey}
@@ -46,6 +69,21 @@ export default function AdminFrentesPage() {
               }}
               onCancel={() => setEditId(null)}
             />
+          ) : confirmDeleteId === f.id ? (
+            <Card key={f.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-danger-soft/10 border border-danger/20 p-4">
+              <div>
+                <p className="text-sm font-bold text-danger">¿Eliminar el frente "{f.name}"?</p>
+                <p className="text-xs text-ink-muted mt-0.5">Esta acción no se puede deshacer.</p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <Button size="sm" variant="secondary" onClick={() => setConfirmDeleteId(null)} disabled={busyId === f.id}>
+                  Cancelar
+                </Button>
+                <Button size="sm" variant="danger" onClick={() => eliminar(f.id)} disabled={busyId === f.id}>
+                  {busyId === f.id ? "Eliminando..." : "Sí, eliminar"}
+                </Button>
+              </div>
+            </Card>
           ) : (
             <Card key={f.id} className="flex items-center justify-between p-4">
               <div className="flex items-start gap-3">
@@ -61,9 +99,14 @@ export default function AdminFrentesPage() {
                   {f.description && <p className="mt-1 text-sm text-ink-muted">{f.description}</p>}
                 </div>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setEditId(f.id)}>
-                Editar
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setEditId(f.id)}>
+                  Editar
+                </Button>
+                <Button variant="ghost" size="sm" className="text-danger hover:bg-danger-soft/20" onClick={() => setConfirmDeleteId(f.id)}>
+                  Eliminar
+                </Button>
+              </div>
             </Card>
           ),
         )}

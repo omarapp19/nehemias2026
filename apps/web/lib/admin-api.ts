@@ -67,12 +67,14 @@ export const apiInsumos = () => apiGet("/admin/insumos");
 export const apiCrearInsumo = (data: unknown) => apiJson("/admin/insumos", "POST", data);
 export const apiActualizarInsumo = (id: string, data: unknown) =>
   apiJson(`/admin/insumos/${id}`, "PATCH", data);
+export const apiEliminarInsumo = (id: string) => apiJson(`/admin/insumos/${id}`, "DELETE", {});
 
 // — Frentes —
 export const apiFrentes = () => apiGet("/admin/frentes");
 export const apiCrearFrente = (data: unknown) => apiJson("/admin/frentes", "POST", data);
 export const apiActualizarFrente = (id: string, data: unknown) =>
   apiJson(`/admin/frentes/${id}`, "PUT", data);
+export const apiEliminarFrente = (id: string) => apiJson(`/admin/frentes/${id}`, "DELETE", {});
 
 // — Entregas —
 export const apiEntregas = () => apiGet("/admin/entregas");

@@ -1,8 +1,10 @@
 import { Router } from "express";
 import {
   adminCreateDonationSchema,
+  adminUpdateDonationSchema,
   reviewDonationSchema,
   expenseSchema,
+  expenseUpdateSchema,
   supplySchema,
   supplyUpdateSchema,
   frenteSchema,
@@ -25,8 +27,9 @@ import {
   listSupplies,
   createSupply,
   updateSupply,
+  deleteSupply,
 } from "../services/inventory.js";
-import { listFrentes, createFrente, updateFrente } from "../services/frentes.js";
+import { listFrentes, createFrente, updateFrente, deleteFrente } from "../services/frentes.js";
 import { createDelivery, listPublicDeliveries } from "../services/deliveries.js";
 import {
   listAllPaymentInfo,
@@ -91,7 +94,7 @@ adminRouter.put(
   "/donaciones/:id",
   upload.single("proof"),
   asyncHandler(async (req, res) => {
-    const input = adminCreateDonationSchema.partial().parse({
+    const input = adminUpdateDonationSchema.parse({
       ...req.body,
       inKindItems: parseMaybeJson(req.body.inKindItems),
     });
@@ -132,7 +135,7 @@ adminRouter.put(
   "/egresos/:id",
   upload.single("invoice"),
   asyncHandler(async (req, res) => {
-    const input = expenseSchema.partial().parse(req.body);
+    const input = expenseUpdateSchema.parse(req.body);
     let invoiceUrl: string | undefined;
     if (req.file) invoiceUrl = await processAndStore("invoices", req.file);
     const egreso = await updateExpense(req.params.id, input, invoiceUrl);
@@ -170,6 +173,14 @@ adminRouter.patch(
   }),
 );
 
+adminRouter.delete(
+  "/insumos/:id",
+  asyncHandler(async (req, res) => {
+    await deleteSupply(req.params.id);
+    res.json({ ok: true });
+  }),
+);
+
 // ---------- FRENTES ----------
 adminRouter.get(
   "/frentes",
@@ -189,6 +200,14 @@ adminRouter.put(
   asyncHandler(async (req, res) => {
     const input = frenteSchema.parse(req.body);
     res.json({ frente: await updateFrente(req.params.id, input) });
+  }),
+);
+
+adminRouter.delete(
+  "/frentes/:id",
+  asyncHandler(async (req, res) => {
+    await deleteFrente(req.params.id);
+    res.json({ ok: true });
   }),
 );
 
