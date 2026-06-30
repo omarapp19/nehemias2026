@@ -17,61 +17,62 @@
 
 export const theme = {
   colors: {
-    // — Superficies (la base es blanca; `surface` añade calidez de papel) —
-    background: "#FFFFFF", // fondo de página
-    surface: "#F7F4EE", // tarjetas y secciones suaves (papel cálido)
-    surfaceSunken: "#EEEAE1", // fondos hundidos / cabeceras de tabla
+    // — Superficies —
+    background: "#FFFFFF", // fondo de página (blanco puro)
+    surface: "#F9FAFB", // tarjetas y superficies (gris muy suave)
+    surfaceSunken: "#F3F4F6", // fondos hundidos / cabeceras de tabla
 
-    // — Texto (tinta cálida, no negro frío) —
-    ink: "#1B211D", // texto principal
-    inkMuted: "#586159", // texto secundario
-    inkSubtle: "#8A9189", // etiquetas, ayudas, placeholders
+    // — Texto (tinta muy oscura y corporativa) —
+    ink: "#111827", // texto principal (gris 900)
+    inkMuted: "#4B5563", // texto secundario (gris 600)
+    inkSubtle: "#9CA3AF", // etiquetas, ayudas, placeholders (gris 400)
 
-    // — Marca: verde profundo (Nehemías reconstruye) —
-    brand: "#14533B", // acento institucional principal
-    brandStrong: "#0F4030", // hover / énfasis
-    brandSoft: "#E7EFE9", // fondos teñidos de marca
+    // — Marca: verde bosque profundo y profesional (Nehemías reconstruye) —
+    brand: "#0B442D", // acento institucional principal
+    brandStrong: "#083322", // hover / énfasis
+    brandSoft: "#E6EFEA", // fondos teñidos de marca
     brandContrast: "#FFFFFF", // texto sobre fondo de marca
 
-    // — Bordes (líneas finas cálidas) —
-    border: "#E4DFD4",
-    borderStrong: "#D2CBBC",
+    // — Bordes (líneas finas limpias) —
+    border: "#E5E7EB", // gris 200
+    borderStrong: "#D1D5DB", // gris 300
 
     // — Estados (reservados, no decorativos) —
-    success: "#1E7A4D",
-    successSoft: "#E4F0E8",
-    warning: "#B45309", // ámbar: stock bajo / pendiente
-    warningSoft: "#FBEEDD",
-    danger: "#B42318", // rojo: rechazada / agotado
-    dangerSoft: "#FBE9E7",
+    success: "#10B981", // verde 500
+    successSoft: "#D1FAE5",
+    warning: "#F59E0B", // ámbar 500
+    warningSoft: "#FEF3C7",
+    danger: "#EF4444", // rojo 500
+    dangerSoft: "#FEE2E2",
 
     // — Foco accesible —
-    focus: "#14533B",
+    focus: "#0B442D",
   },
 
   /** Tipografía. Las familias se cargan en apps/web vía next/font. */
   fonts: {
     sans: "var(--font-sans), ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
-    serif: "var(--font-serif), ui-serif, Georgia, Cambria, serif",
+    serif: "var(--font-serif), ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
   },
 
-  /** Radios sobrios (nada de pastilla salvo puntos/avatares). */
+  /** Radios sobrios y modernos. */
   radii: {
     xs: "0.25rem", // 4px
     sm: "0.375rem", // 6px
-    md: "0.625rem", // 10px
-    lg: "0.875rem", // 14px
-    xl: "1.25rem", // 20px
+    md: "0.5rem", // 8px
+    lg: "0.75rem", // 12px
+    xl: "1rem", // 16px
     full: "9999px",
   },
 
-  /** Sombras suaves y cálidas (tinte de tinta, no gris frío de plantilla). */
+  /** Sombras suaves y profesionales (tinte de tinta, no gris frío de plantilla). */
   shadows: {
-    sm: "0 1px 2px rgba(27,33,29,0.05)",
-    md: "0 2px 8px -2px rgba(27,33,29,0.08), 0 1px 2px rgba(27,33,29,0.04)",
-    lg: "0 14px 36px -12px rgba(27,33,29,0.14)",
+    sm: "0 1px 2px rgba(22, 28, 24, 0.04)",
+    md: "0 4px 12px -2px rgba(22, 28, 24, 0.06), 0 2px 4px -1px rgba(22, 28, 24, 0.03)",
+    lg: "0 12px 28px -4px rgba(22, 28, 24, 0.08), 0 4px 12px -2px rgba(22, 28, 24, 0.04)",
   },
 } as const;
 
 export type Theme = typeof theme;
 export type ThemeColorName = keyof Theme["colors"];
+

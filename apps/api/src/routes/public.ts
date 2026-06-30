@@ -40,7 +40,7 @@ function parseMaybeJson<T>(value: unknown): T | undefined {
 publicRouter.get(
   "/home",
   asyncHandler(async (_req, res) => {
-    const [balances, urgentes, donaciones, egresos, entregas, captacion] = await Promise.all([
+    const [{ balances, exchangeRate }, urgentes, donaciones, egresos, entregas, captacion] = await Promise.all([
       getBalances(),
       listUrgentSupplies(),
       listPublicVerifiedDonations(6),
@@ -50,6 +50,7 @@ publicRouter.get(
     ]);
     res.json({
       balances,
+      exchangeRate,
       urgentes: urgentes.map(toPublicSupply),
       ultimasDonaciones: donaciones,
       ultimosEgresos: egresos,
@@ -61,7 +62,10 @@ publicRouter.get(
 
 publicRouter.get(
   "/balances",
-  asyncHandler(async (_req, res) => res.json({ balances: await getBalances() })),
+  asyncHandler(async (_req, res) => {
+    const result = await getBalances();
+    res.json(result);
+  }),
 );
 
 publicRouter.get(

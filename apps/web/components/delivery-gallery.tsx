@@ -14,7 +14,7 @@ export function DeliveryCard({ entrega }: { entrega: PublicDelivery }) {
   return (
     <Link
       href={`/entregas/${entrega.id}`}
-      className="group block overflow-hidden rounded-lg border border-border bg-background shadow-sm transition-shadow hover:shadow-md"
+      className="group block overflow-hidden rounded-lg border border-border bg-surface shadow-sm transition-shadow hover:shadow-md"
     >
       <div className="aspect-[3/2] w-full overflow-hidden bg-surface-sunken">
         {cover ? (

@@ -28,7 +28,7 @@ export function ProgressBar({
     <div className={cn("flex flex-col gap-1.5", className)}>
       {label && <span className="text-sm text-ink-muted">{label}</span>}
       <div
-        className="h-2.5 w-full overflow-hidden rounded-full bg-surface-sunken"
+        className="h-1.5 w-full overflow-hidden rounded-full bg-surface-sunken"
         role="progressbar"
         aria-valuenow={Math.round(pct)}
         aria-valuemin={0}

@@ -9,13 +9,12 @@ export default async function EntregasPage() {
   const { entregas } = await getEntregas();
 
   return (
-    <div className="mx-auto max-w-6xl space-y-10 px-5 py-12">
-      <header>
-        <p className="text-xs font-semibold uppercase tracking-wider text-brand">Bitácora</p>
-        <h1 className="mt-1 font-serif text-4xl font-semibold text-ink">Entregas en el terreno</h1>
-        <p className="mt-2 max-w-prose text-ink-muted">
-          Cada jornada de ayuda, con sus fotos y el frente al que llegó. La prueba de que la
-          ayuda llega a su destino.
+    <div className="mx-auto max-w-6xl space-y-12 px-5 py-16 sm:py-24">
+      <header className="border-b border-border/50 pb-8">
+        <p className="text-xs font-bold uppercase tracking-wider text-brand">Bitácora</p>
+        <h1 className="mt-2 font-serif text-4xl font-extrabold tracking-tight text-ink sm:text-5xl">Entregas en el terreno</h1>
+        <p className="mt-4 max-w-prose text-base text-ink-muted leading-relaxed">
+          Registro detallado de cada jornada de ayuda en las comunidades, acompañado de comprobantes fotográficos y el frente beneficiado.
         </p>
       </header>
 

@@ -5,11 +5,11 @@ import { IconCheck, IconClock, IconX, IconAlert } from "./icons.js";
 export type BadgeTone = "neutral" | "brand" | "success" | "warning" | "danger";
 
 const tones: Record<BadgeTone, string> = {
-  neutral: "bg-surface-sunken text-ink-muted",
-  brand: "bg-brand-soft text-brand-strong",
-  success: "bg-success-soft text-success",
-  warning: "bg-warning-soft text-warning",
-  danger: "bg-danger-soft text-danger",
+  neutral: "bg-surface-sunken/50 text-ink-muted border border-border/60",
+  brand: "bg-brand-soft text-brand hover:bg-brand-soft/80 border border-brand/15",
+  success: "bg-success-soft text-success border border-success/20",
+  warning: "bg-warning-soft text-warning border border-warning/20",
+  danger: "bg-danger-soft text-danger border border-danger/20",
 };
 
 /**

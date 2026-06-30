@@ -17,6 +17,7 @@ export async function createExpense(
         category: input.category ?? null,
         supplier: input.supplier ?? null,
         invoiceUrl: invoiceUrl ?? null,
+        invoiceNumber: input.invoiceNumber ?? null,
         createsStock: input.createsStock ?? false,
         spentAt: input.spentAt ?? new Date(),
         createdById: adminId,

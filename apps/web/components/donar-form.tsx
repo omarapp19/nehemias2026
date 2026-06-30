@@ -89,34 +89,34 @@ export function DonarForm() {
       </div>
 
       {/* Identidad pública */}
-      <fieldset className="rounded-lg border border-border p-4">
-        <legend className="px-1 text-sm font-medium text-ink">¿Cómo quieres aparecer?</legend>
-        <div className="mt-1 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <label className="inline-flex items-center gap-2 text-base">
+      <fieldset className="rounded-lg border border-border bg-surface/30 p-5">
+        <legend className="px-2 text-xs font-semibold uppercase tracking-wider text-ink-muted">¿Cómo quieres aparecer?</legend>
+        <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-center">
+          <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-ink">
             <input
               type="radio"
               name="modo"
               checked={!anonimo}
               onChange={() => setAnonimo(false)}
-              className="h-4 w-4 accent-[color:rgb(var(--color-brand))]"
+              className="h-4 w-4 rounded-full border-border text-brand focus:ring-brand accent-[color:rgb(var(--color-brand))]"
             />
-            Con mi nombre
+            Con mi nombre público
           </label>
-          <label className="inline-flex items-center gap-2 text-base">
+          <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-ink">
             <input
               type="radio"
               name="modo"
               checked={anonimo}
               onChange={() => setAnonimo(true)}
-              className="h-4 w-4 accent-[color:rgb(var(--color-brand))]"
+              className="h-4 w-4 rounded-full border-border text-brand focus:ring-brand accent-[color:rgb(var(--color-brand))]"
             />
-            Anónimo
+            Como Anónimo
           </label>
         </div>
         {!anonimo && (
-          <div className="mt-4">
-            <Field label="Tu nombre" htmlFor="nombre" help="Aparecerá junto a tu aporte.">
-              <Input id="nombre" name="donorName" placeholder="Nombre y apellido" />
+          <div className="mt-5 border-t border-border/40 pt-4">
+            <Field label="Tu nombre" htmlFor="nombre" help="Aparecerá junto a tu aporte en la lista de transparencia.">
+              <Input id="nombre" name="donorName" placeholder="Ej. María García" />
             </Field>
           </div>
         )}
@@ -135,17 +135,20 @@ export function DonarForm() {
       </Field>
 
       {/* Comprobante */}
-      <div>
-        <span className="text-sm font-medium text-ink">Comprobante (opcional)</span>
-        <p className="mb-2 text-sm text-ink-subtle">
-          Una foto del comprobante nos ayuda a verificar más rápido. Es privado.
+      <div className="flex flex-col gap-1.5">
+        <span className="text-sm font-medium text-ink">Comprobante de transferencia (opcional)</span>
+        <p className="text-xs text-ink-subtle leading-normal">
+          Una foto del comprobante acelera la verificación. NUNCA se mostrará de forma pública.
         </p>
         <label
           htmlFor="proof"
-          className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-border-strong bg-surface px-4 py-3 text-ink-muted hover:bg-surface-sunken"
+          className="mt-1 flex flex-col items-center justify-center gap-2 cursor-pointer rounded-lg border-2 border-dashed border-border-strong bg-background p-6 text-center text-ink-muted hover:bg-surface hover:border-brand/35 hover:text-brand transition-all duration-200 shadow-sm"
         >
-          <IconCamera size={22} />
-          <span className="text-sm">{fileName || "Tomar foto o subir archivo"}</span>
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-sunken text-ink-muted group-hover:text-brand transition-colors">
+            <IconCamera size={20} />
+          </span>
+          <span className="text-sm font-semibold">{fileName || "Haz clic para tomar foto o subir archivo"}</span>
+          <span className="text-[11px] text-ink-subtle">Formatos de imagen o PDF de hasta 8MB</span>
           <input
             id="proof"
             name="proof"

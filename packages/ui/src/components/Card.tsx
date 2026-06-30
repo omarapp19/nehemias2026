@@ -1,7 +1,7 @@
 import * as React from "react";
 import { cn } from "../lib/cn.js";
 
-/** Tarjeta base: borde fino cálido + sombra suave (nada de sombrita gris uniforme). */
+/** Tarjeta base: borde fino limpio + sombra suave y profesional. */
 export function Card({
   className,
   children,
@@ -11,7 +11,7 @@ export function Card({
   return (
     <As
       className={cn(
-        "rounded-lg border border-border bg-background shadow-sm",
+        "rounded-lg border border-border bg-surface shadow-sm hover:shadow-md transition-all duration-300 ease-in-out",
         className,
       )}
       {...props}

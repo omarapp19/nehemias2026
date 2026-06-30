@@ -26,7 +26,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface px-5">
+    <div className="flex min-h-screen items-center justify-center bg-background px-5">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center text-center">
           <BrandMark size={40} />
@@ -35,7 +35,7 @@ export default function LoginPage() {
         </div>
         <form
           onSubmit={onSubmit}
-          className="grid gap-4 rounded-xl border border-border bg-background p-6 shadow-sm"
+          className="grid gap-4 rounded-xl border border-border bg-surface p-6 shadow-sm"
         >
           <Field label="Correo" htmlFor="email">
             <Input id="email" name="email" type="email" autoComplete="username" required />

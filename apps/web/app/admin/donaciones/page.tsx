@@ -31,6 +31,19 @@ export default function AdminDonacionesPage() {
   const [cargando, setCargando] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [mostrarForm, setMostrarForm] = useState(false);
+  const [modalUrl, setModalUrl] = useState<string | null>(null);
+  const [modalLabel, setModalLabel] = useState<string>("");
+
+  useEffect(() => {
+    if (modalUrl) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [modalUrl]);
 
   function cargar(t: Tab) {
     setCargando(true);
@@ -94,7 +107,7 @@ export default function AdminDonacionesPage() {
       {cargando ? (
         <p className="text-ink-muted">Cargando...</p>
       ) : items.length === 0 ? (
-        <p className="rounded-lg border border-border bg-background p-8 text-center text-ink-muted">
+        <p className="rounded-lg border border-border bg-surface p-8 text-center text-ink-muted">
           No hay donaciones {tab === "pending" ? "por verificar" : "aquí"}.
         </p>
       ) : (
@@ -132,14 +145,15 @@ export default function AdminDonacionesPage() {
                         </p>
                       )}
                       {d.proofUrl && (
-                        <a
-                          href={fileUrl(d.proofUrl) ?? "#"}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-medium text-brand hover:text-brand-strong"
+                        <button
+                          onClick={() => {
+                            setModalUrl(fileUrl(d.proofUrl));
+                            setModalLabel(`Comprobante de ${d.donorDisplay}`);
+                          }}
+                          className="font-medium text-brand hover:text-brand-strong cursor-pointer bg-transparent border-0 p-0 text-left"
                         >
                           Ver comprobante
-                        </a>
+                        </button>
                       )}
                     </div>
                   )}
@@ -167,6 +181,62 @@ export default function AdminDonacionesPage() {
               </div>
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* Modal para visualizar el comprobante */}
+      {modalUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 sm:p-6 transition-opacity animate-in fade-in duration-200">
+          <div className="relative max-w-3xl w-full bg-surface rounded-xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+            {/* Cabecera del Modal */}
+            <div className="flex items-center justify-between p-4 border-b border-border bg-surface-sunken/30">
+              <div>
+                <h3 className="font-bold text-ink leading-tight">{modalLabel || "Comprobante"}</h3>
+              </div>
+              <button
+                onClick={() => setModalUrl(null)}
+                className="p-1.5 rounded-full text-ink-muted hover:bg-surface-sunken hover:text-ink transition-colors cursor-pointer"
+                aria-label="Cerrar"
+              >
+                <IconX size={20} />
+              </button>
+            </div>
+
+            {/* Contenido del Modal */}
+            <div className="flex-1 overflow-auto bg-muted/10 p-4 flex items-center justify-center min-h-[300px]">
+              {modalUrl.toLowerCase().endsWith(".pdf") ? (
+                <iframe
+                  src={modalUrl}
+                  title="Comprobante PDF"
+                  className="w-full h-[60vh] border-0 rounded-md shadow-sm bg-background"
+                />
+              ) : (
+                <img
+                  src={modalUrl}
+                  alt="Comprobante"
+                  className="max-h-[60vh] max-w-full object-contain rounded-md shadow-md border border-border/50 bg-background"
+                />
+              )}
+            </div>
+
+            {/* Pie del Modal */}
+            <div className="flex items-center justify-between gap-3 p-4 border-t border-border bg-surface-sunken/30">
+              <a
+                href={modalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-md bg-background text-ink border border-border-strong hover:bg-surface px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors"
+              >
+                Abrir en pestaña nueva
+              </a>
+              <button
+                onClick={() => setModalUrl(null)}
+                className="inline-flex items-center gap-1.5 rounded-md bg-brand text-brand-contrast hover:bg-brand-strong px-4 py-1.5 text-xs font-semibold shadow-sm transition-colors cursor-pointer"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

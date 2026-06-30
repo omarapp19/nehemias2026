@@ -36,7 +36,7 @@ export default function AdminCaptacionPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-serif text-3xl font-semibold text-ink">Datos de captación</h1>
+        <h1 className="font-serif text-3xl font-semibold text-ink">Métodos de pago</h1>
         <p className="mt-1 text-ink-muted">
           Las cuentas y medios que ve el público en “Quiero ayudar”.
         </p>
@@ -81,7 +81,7 @@ export default function AdminCaptacionPage() {
             </Card>
           ),
         )}
-        {items.length === 0 && <p className="text-ink-muted">Aún no hay datos de captación.</p>}
+        {items.length === 0 && <p className="text-ink-muted">Aún no hay métodos de pago.</p>}
       </section>
     </div>
   );
@@ -121,7 +121,7 @@ function CaptacionForm({
   return (
     <Card className="p-5">
       <h2 className="mb-4 font-serif text-lg font-semibold text-ink">
-        {item ? "Editar dato de captación" : "Agregar dato de captación"}
+        {item ? "Editar método de pago" : "Agregar método de pago"}
       </h2>
       <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
         <Field label="Etiqueta" htmlFor="c-label" required>

@@ -6,22 +6,22 @@ export type ButtonSize = "sm" | "md" | "lg";
 
 const base =
   "inline-flex items-center justify-center gap-2 font-medium rounded-md " +
-  "transition-colors duration-200 select-none " +
+  "transition-all duration-200 ease-in-out select-none active:scale-[0.98] active:duration-75 " +
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-background " +
   "disabled:opacity-50 disabled:pointer-events-none";
 
 const variants: Record<ButtonVariant, string> = {
-  primary: "bg-brand text-brand-contrast hover:bg-brand-strong shadow-sm",
-  secondary: "bg-surface text-ink border border-border-strong hover:bg-surface-sunken",
+  primary: "bg-brand text-brand-contrast hover:bg-brand-strong hover:shadow-md shadow-[0_2px_4px_rgba(11,68,45,0.12)] border border-transparent",
+  secondary: "bg-background text-ink border border-border-strong hover:bg-surface hover:shadow-sm shadow-[0_1px_2px_rgba(0,0,0,0.03)]",
   ghost: "bg-transparent text-brand hover:bg-brand-soft",
-  danger: "bg-danger text-white hover:opacity-90 shadow-sm",
+  danger: "bg-danger text-white hover:bg-danger/90 hover:shadow-md shadow-[0_2px_4px_rgba(180,35,24,0.15)]",
 };
 
 // Alturas con objetivo de toque cómodo (md y lg cumplen el mínimo de 48px).
 const sizes: Record<ButtonSize, string> = {
-  sm: "h-10 px-4 text-sm",
-  md: "h-12 px-5 text-base",
-  lg: "h-14 px-7 text-lg",
+  sm: "h-10 px-4 text-sm rounded-md",
+  md: "h-12 px-5 text-base rounded-md",
+  lg: "h-14 px-7 text-lg rounded-md",
 };
 
 /** Devuelve solo las clases (útil para estilizar <Link> como botón). */

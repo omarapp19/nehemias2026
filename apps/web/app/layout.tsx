@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Newsreader } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import { themeToCssVars } from "@nehemias/ui/css-vars";
 import "./globals.css";
 
@@ -9,10 +9,10 @@ const sans = Inter({
   display: "swap",
 });
 
-const serif = Newsreader({
+const titleFont = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-serif",
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "600", "700", "800"],
   display: "swap",
 });
 
@@ -28,12 +28,12 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#14533B",
+  themeColor: "#0B442D",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`${sans.variable} ${serif.variable}`}>
+    <html lang="es" className={`${sans.variable} ${titleFont.variable}`}>
       <head>
         {/* Variables de color generadas desde theme.config.ts (única fuente). */}
         <style dangerouslySetInnerHTML={{ __html: themeToCssVars() }} />

@@ -8,29 +8,28 @@ export const metadata: Metadata = { title: "Transparencia" };
 export const dynamic = "force-dynamic";
 
 export default async function TransparenciaPage() {
-  const [{ balances }, { donaciones }, { egresos }] = await Promise.all([
+  const [{ balances, exchangeRate }, { donaciones }, { egresos }] = await Promise.all([
     getBalances(),
     getDonaciones(),
     getEgresos(),
   ]);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-12 px-5 py-12">
-      <header>
-        <p className="text-xs font-semibold uppercase tracking-wider text-brand">Auditoría</p>
-        <h1 className="mt-1 font-serif text-4xl font-semibold text-ink">Transparencia</h1>
-        <p className="mt-2 max-w-prose text-ink-muted">
-          Todo lo que entra y todo lo que sale. Los egresos incluyen su factura. Los datos de
-          contacto de los donantes nunca se muestran.
+    <div className="mx-auto max-w-6xl space-y-16 px-5 py-16 sm:py-24">
+      <header className="border-b border-border/50 pb-8">
+        <p className="text-xs font-bold uppercase tracking-wider text-brand">Auditoría</p>
+        <h1 className="mt-2 font-serif text-4xl font-extrabold tracking-tight text-ink sm:text-5xl">Transparencia</h1>
+        <p className="mt-4 max-w-prose text-base text-ink-muted leading-relaxed">
+          Libro de contabilidad abierto en tiempo real. Cada compra incluye su respectiva factura digital auditada. Los datos privados de donantes se mantienen anónimos.
         </p>
       </header>
 
-      <BalancePanel balances={balances} />
+      <BalancePanel balances={balances} exchangeRate={exchangeRate} />
 
       <section>
-        <SectionHeader eyebrow="Detalle" title="Ingresos y egresos" />
+        <SectionHeader eyebrow="Historial transaccional" title="Ingresos y egresos" />
         <div className="mt-6">
-          <TransparenciaExplorer donaciones={donaciones} egresos={egresos} />
+          <TransparenciaExplorer donaciones={donaciones} egresos={egresos} exchangeRate={exchangeRate} />
         </div>
       </section>
     </div>

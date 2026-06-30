@@ -11,9 +11,11 @@ type Tab = "ingresos" | "egresos";
 export function TransparenciaExplorer({
   donaciones,
   egresos,
+  exchangeRate,
 }: {
   donaciones: PublicDonation[];
   egresos: PublicExpense[];
+  exchangeRate: number;
 }) {
   const [tab, setTab] = useState<Tab>("ingresos");
   const [categoria, setCategoria] = useState<string>("todas");
@@ -31,7 +33,7 @@ export function TransparenciaExplorer({
     <div>
       {/* Pestañas */}
       <div
-        className="inline-flex rounded-lg border border-border bg-surface p-1"
+        className="inline-flex rounded-lg border border-border/70 bg-surface-sunken/40 p-1 shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
         role="tablist"
         aria-label="Tipo de movimiento"
       >
@@ -39,8 +41,8 @@ export function TransparenciaExplorer({
           role="tab"
           aria-selected={tab === "ingresos"}
           onClick={() => setTab("ingresos")}
-          className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-            tab === "ingresos" ? "bg-background text-ink shadow-sm" : "text-ink-muted"
+          className={`rounded-md px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+            tab === "ingresos" ? "bg-background text-brand shadow-sm border border-border/50" : "text-ink-muted hover:text-ink"
           }`}
         >
           Ingresos ({donaciones.length})
@@ -49,8 +51,8 @@ export function TransparenciaExplorer({
           role="tab"
           aria-selected={tab === "egresos"}
           onClick={() => setTab("egresos")}
-          className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-            tab === "egresos" ? "bg-background text-ink shadow-sm" : "text-ink-muted"
+          className={`rounded-md px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+            tab === "egresos" ? "bg-background text-brand shadow-sm border border-border/50" : "text-ink-muted hover:text-ink"
           }`}
         >
           Egresos ({egresos.length})
@@ -58,15 +60,15 @@ export function TransparenciaExplorer({
       </div>
 
       {tab === "egresos" && categorias.length > 1 && (
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-5 flex flex-wrap gap-2">
           {categorias.map((c) => (
             <button
               key={c}
               onClick={() => setCategoria(c)}
-              className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+              className={`rounded-full border px-3.5 py-1.5 text-xs font-bold tracking-wide uppercase transition-all duration-200 ${
                 categoria === c
-                  ? "border-brand bg-brand-soft font-medium text-brand-strong"
-                  : "border-border text-ink-muted hover:bg-surface"
+                  ? "border-brand bg-brand-soft text-brand shadow-sm"
+                  : "border-border text-ink-muted hover:bg-surface hover:text-ink"
               }`}
             >
               {c === "todas" ? "Todas" : c}
@@ -86,6 +88,7 @@ export function TransparenciaExplorer({
               amount={d.amount ?? 0}
               currency={d.currency}
               fecha={d.donatedAt}
+              exchangeRate={exchangeRate}
             />
           ))}
 
@@ -100,6 +103,7 @@ export function TransparenciaExplorer({
               currency={e.currency}
               fecha={e.spentAt}
               comprobanteUrl={fileUrl(e.invoiceUrl)}
+              exchangeRate={exchangeRate}
             />
           ))}
 

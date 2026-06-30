@@ -39,8 +39,8 @@ export function Field({
 // 16px base evita el zoom automático en iOS; alto cómodo para el dedo.
 const controlBase =
   "w-full min-h-12 rounded-md border border-border bg-background px-3.5 py-2.5 text-base text-ink " +
-  "placeholder:text-ink-subtle transition-colors " +
-  "focus:outline-none focus:ring-2 focus:ring-focus focus:border-brand " +
+  "placeholder:text-ink-subtle transition-all duration-200 hover:border-border-strong " +
+  "focus:outline-none focus:ring-4 focus:ring-brand/10 focus:border-brand focus:shadow-[0_1px_2px_rgba(0,0,0,0.02)] " +
   "disabled:opacity-60 disabled:bg-surface-sunken";
 
 export const Input = React.forwardRef<

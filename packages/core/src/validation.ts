@@ -86,6 +86,7 @@ export const expenseSchema = z
     currency: currencyEnum.default("USD"),
     category: z.string().max(60).optional(),
     supplier: z.string().max(120).optional(),
+    invoiceNumber: z.string().max(60).optional(),
     spentAt: z.coerce.date().optional(),
     createsStock: zBool(false),
     // Si alimenta inventario:

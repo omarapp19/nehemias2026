@@ -100,6 +100,7 @@ export interface ExpenseRow {
   category: string | null;
   supplier: string | null;
   invoiceUrl: string | null; // PÚBLICA (prueba de auditoría)
+  invoiceNumber?: string | null;
   createsStock: boolean;
   spentAt: Date | string;
 }
@@ -112,6 +113,7 @@ export interface PublicExpense {
   category: string | null;
   supplier: string | null;
   invoiceUrl: string | null; // sí pública
+  invoiceNumber?: string | null;
   spentAt: string;
 }
 
@@ -124,6 +126,7 @@ export function toPublicExpense(e: ExpenseRow): PublicExpense {
     category: e.category,
     supplier: e.supplier,
     invoiceUrl: e.invoiceUrl,
+    invoiceNumber: e.invoiceNumber,
     spentAt: iso(e.spentAt),
   };
 }

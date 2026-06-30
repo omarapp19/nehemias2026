@@ -17,6 +17,7 @@
     "db:migrate": "dotenv -e .env -- pnpm --filter @nehemias/db migrate",
     "db:deploy": "dotenv -e .env -- pnpm --filter @nehemias/db deploy",
     "db:seed": "dotenv -e .env -- pnpm --filter @nehemias/db seed",
+    "db:reset": "dotenv -e .env -- pnpm --filter @nehemias/db exec prisma migrate reset --force",
     "db:studio": "dotenv -e .env -- pnpm --filter @nehemias/db studio"
   },
   "devDependencies": {

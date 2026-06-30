@@ -23,6 +23,7 @@ async function getJSON<T>(path: string): Promise<T> {
 
 export interface HomeSnapshot {
   balances: CurrencyBalance[];
+  exchangeRate: number;
   urgentes: PublicSupply[];
   ultimasDonaciones: PublicDonation[];
   ultimosEgresos: PublicExpense[];
@@ -33,7 +34,7 @@ export interface HomeSnapshot {
 export const getHome = () => getJSON<HomeSnapshot>("/public/home");
 
 export const getBalances = () =>
-  getJSON<{ balances: CurrencyBalance[] }>("/public/balances");
+  getJSON<{ balances: CurrencyBalance[]; exchangeRate: number }>("/public/balances");
 
 export const getDonaciones = () =>
   getJSON<{ donaciones: PublicDonation[] }>("/public/donaciones");
