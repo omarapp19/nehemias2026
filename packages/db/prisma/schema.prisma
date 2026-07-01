@@ -206,9 +206,10 @@ model DeliveryPhoto {
 
 // ---------- DATOS DE CAPTACIÓN (público) ----------
 model PaymentInfo {
-  id        String  @id @default(uuid())
-  label     String // 'Pago Móvil', 'Cuenta BDV'...
-  details   String // texto a mostrar
-  isActive  Boolean @default(true)
-  sortOrder Int     @default(0)
+  id              String   @id @default(uuid())
+  label           String // 'Pago Móvil', 'Cuenta BDV'...
+  details         String // texto a mostrar
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  defaultCurrency Currency @default(USD)
 }

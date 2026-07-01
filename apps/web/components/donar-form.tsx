@@ -11,7 +11,7 @@ export function DonarForm() {
   const [anonimo, setAnonimo] = useState(false);
   const [error, setError] = useState<string>("");
   const [fileName, setFileName] = useState<string>("");
-  const [metodos, setMetodos] = useState<{ id: string; label: string; isActive: boolean }[]>([]);
+  const [metodos, setMetodos] = useState<{ id: string; label: string; isActive: boolean; defaultCurrency?: "USD" | "VES" }[]>([]);
 
   // Form states matching user request
   const [tipoAporte, setTipoAporte] = useState<"financial" | "in_kind">("financial");
@@ -38,7 +38,11 @@ export function DonarForm() {
       .then((r) => r.json())
       .then((data) => {
         if (data.captacion) {
-          setMetodos(data.captacion.filter((m: any) => m.isActive));
+          const activeMethods = data.captacion.filter((m: any) => m.isActive);
+          setMetodos(activeMethods);
+          if (activeMethods.length > 0 && activeMethods[0].defaultCurrency) {
+            handleMonedaChange(activeMethods[0].defaultCurrency);
+          }
         }
       })
       .catch(() => {});
@@ -84,6 +88,13 @@ export function DonarForm() {
   const handleRateChange = (val: string) => {
     setRateInput(val);
     updateEquivalente(montoOriginal, moneda, val);
+  };
+
+  const handleMetodoChange = (methodLabel: string) => {
+    const found = metodos.find((m) => m.label === methodLabel);
+    if (found && found.defaultCurrency) {
+      handleMonedaChange(found.defaultCurrency);
+    }
   };
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -209,7 +220,7 @@ export function DonarForm() {
         </Field>
 
         <Field label="¿Cómo donaste?" htmlFor="metodo">
-          <Select id="metodo" name="method" required>
+          <Select id="metodo" name="method" required onChange={(e) => handleMetodoChange(e.target.value)}>
             {metodos.map((m) => (
               <option key={m.id} value={m.label}>
                 {m.label}
@@ -231,33 +242,24 @@ export function DonarForm() {
         <>
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Monto Original" htmlFor="monto" required>
-              <Input
-                id="monto"
-                type="number"
-                step="any"
-                inputMode="decimal"
-                value={montoOriginal}
-                onChange={(e) => handleMontoChange(e.target.value)}
-                placeholder="0.00"
-                required
-              />
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-ink-subtle text-sm font-semibold select-none">
+                  {moneda === "USD" ? "$" : "Bs."}
+                </span>
+                <Input
+                  id="monto"
+                  type="number"
+                  step="any"
+                  inputMode="decimal"
+                  value={montoOriginal}
+                  onChange={(e) => handleMontoChange(e.target.value)}
+                  placeholder="0.00"
+                  className="pl-10"
+                  required
+                />
+              </div>
             </Field>
 
-            <Field label="Moneda" htmlFor="moneda" required>
-              <Select
-                id="moneda"
-                name="currency"
-                value={moneda}
-                onChange={(e) => handleMonedaChange(e.target.value as any)}
-                required
-              >
-                <option value="USD">Dólares (USD)</option>
-                <option value="VES">Bolívares (Bs.)</option>
-              </Select>
-            </Field>
-          </div>
-
-          <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Tasa BCV del día (VES/USD)" htmlFor="rate" required>
               <div className="flex gap-2 items-center">
                 <Input
@@ -277,24 +279,26 @@ export function DonarForm() {
                     variant="secondary"
                     size="sm"
                     onClick={() => handleRateChange(defaultRate)}
-                    className="shrink-0"
+                    className="shrink-0 font-semibold"
                   >
                     Restaurar ({defaultRate})
                   </Button>
                 )}
               </div>
             </Field>
+          </div>
 
-            <Field label="Equivalente USD" htmlFor="equiv">
-              <Input
-                id="equiv"
-                type="text"
-                value={equivalenteUsd ? `$ ${equivalenteUsd}` : ""}
-                readOnly
-                placeholder="$ 0.00"
-                className="bg-surface-sunken font-bold text-brand"
-              />
-            </Field>
+          {/* Banner para Equivalente USD */}
+          <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-brand/20 rounded-2xl p-5 flex flex-col justify-center items-center text-center shadow-inner relative overflow-hidden my-4">
+            <span className="text-[10px] font-bold text-brand uppercase tracking-widest">
+              Equivalente Contable en USD
+            </span>
+            <span className="text-3xl font-black text-brand font-mono mt-1.5">
+              $ {equivalenteUsd || "0.00"}
+            </span>
+            <span className="text-[10px] text-ink-subtle mt-1">
+              Calculado automáticamente en base a la tasa oficial del Banco Central de Venezuela.
+            </span>
           </div>
         </>
       ) : (

@@ -247,8 +247,15 @@ export interface PaymentInfoRow {
   label: string;
   details: string;
   sortOrder: number;
+  defaultCurrency: "USD" | "VES";
 }
 export type PublicPaymentInfo = PaymentInfoRow;
 export function toPublicPaymentInfo(p: PaymentInfoRow): PublicPaymentInfo {
-  return { id: p.id, label: p.label, details: p.details, sortOrder: p.sortOrder };
+  return {
+    id: p.id,
+    label: p.label,
+    details: p.details,
+    sortOrder: p.sortOrder,
+    defaultCurrency: p.defaultCurrency,
+  };
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Button,
   Card,
@@ -25,6 +26,12 @@ export default function AdminEgresosPage() {
   const [modalUrl, setModalUrl] = useState<string | null>(null);
   const [modalLabel, setModalLabel] = useState<string>("");
   const [mostrarForm, setMostrarForm] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [step, setStep] = useState(1);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // States for currency calculator
   const [usdVal, setUsdVal] = useState<string>("");
@@ -144,6 +151,7 @@ export default function AdminEgresosPage() {
     try {
       await apiCrearEgreso(data);
       form.reset();
+      setStep(1);
       setUsdVal("");
       setVesVal("");
       setFileName("");
@@ -182,7 +190,7 @@ export default function AdminEgresosPage() {
         </Button>
       </div>
 
-      {mostrarForm && (
+      {mounted && mostrarForm && createPortal(
         <div className="fixed inset-0 z-50 flex justify-center items-start overflow-y-auto bg-black/60 backdrop-blur-sm p-4 sm:p-6 md:p-8">
           <div className="relative max-w-2xl w-full bg-white rounded-2xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto animate-in zoom-in-95 duration-200">
             {/* Cabecera del Modal */}
@@ -201,129 +209,159 @@ export default function AdminEgresosPage() {
 
             {/* Contenido del Modal (scrollable) */}
             <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
-              <form onSubmit={onSubmit} className="grid gap-5 sm:grid-cols-2">
-                <Field label="Descripción / Rubro" htmlFor="desc" required className="sm:col-span-2">
-                  <Input id="desc" name="description" placeholder="Ej: Compra de medicinas para sector B" required />
-                </Field>
-
-                <Field label="# Factura (Nro.)" htmlFor="invoiceNum">
-                  <Input id="invoiceNum" name="invoiceNumber" placeholder="Ej: 004812" />
-                </Field>
-
-                <Field label="Fecha" htmlFor="fecha" required>
-                  <Input
-                    id="fecha"
-                    name="spentAt"
-                    type="date"
-                    value={spentAt}
-                    onChange={(e) => setSpentAt(e.target.value)}
-                    required
-                  />
-                </Field>
-
-                <Field label="Monto en Dólares ($)" htmlFor="amountUsd">
-                  <div className="relative">
-                    <Input
-                      id="amountUsd"
-                      type="number"
-                      step="any"
-                      inputMode="decimal"
-                      value={usdVal}
-                      onChange={(e) => handleUsdChange(e.target.value)}
-                      placeholder="0.00"
-                      className={primaryCurrency === "USD" && usdVal ? "border-brand ring-1 ring-brand" : ""}
-                    />
-                    {primaryCurrency === "USD" && usdVal && (
-                      <span className="absolute right-3 top-2.5 text-[9px] bg-brand text-brand-contrast px-2 py-0.5 rounded-full font-bold select-none uppercase tracking-wider">
-                        Registro USD
-                      </span>
-                    )}
+              <form onSubmit={onSubmit}>
+                {/* Paso 1: Detalles de la Compra */}
+                <div className={step === 1 ? "grid gap-5 sm:grid-cols-2" : "hidden"}>
+                  <div className="sm:col-span-2 flex justify-between items-center border-b border-border/60 pb-2 mb-2">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-brand/85">
+                      Paso 1: Identificación del Egreso
+                    </h4>
+                    <span className="text-[10px] font-bold bg-brand-soft/20 text-brand px-2 py-0.5 rounded-full">Paso 1 de 2</span>
                   </div>
-                </Field>
 
-                <Field label="Monto en Bolívares (Bs.)" htmlFor="amountVes">
-                  <div className="relative">
+                  <Field label="Descripción / Rubro" htmlFor="desc" required className="sm:col-span-2">
+                    <Input id="desc" name="description" placeholder="Ej: Compra de medicinas para sector B" required />
+                  </Field>
+
+                  <Field label="# Factura (Nro.)" htmlFor="invoiceNum">
+                    <Input id="invoiceNum" name="invoiceNumber" placeholder="Ej: 004812" />
+                  </Field>
+
+                  <Field label="Fecha" htmlFor="fecha" required>
                     <Input
-                      id="amountVes"
-                      type="number"
-                      step="any"
-                      inputMode="decimal"
-                      value={vesVal}
-                      onChange={(e) => handleVesChange(e.target.value)}
-                      placeholder="0.00"
-                      className={primaryCurrency === "VES" && vesVal ? "border-brand ring-1 ring-brand" : ""}
+                      id="fecha"
+                      name="spentAt"
+                      type="date"
+                      value={spentAt}
+                      onChange={(e) => setSpentAt(e.target.value)}
+                      required
                     />
-                    {primaryCurrency === "VES" && vesVal && (
-                      <span className="absolute right-3 top-2.5 text-[9px] bg-brand text-brand-contrast px-2 py-0.5 rounded-full font-bold select-none uppercase tracking-wider">
-                        Registro Bs.
-                      </span>
-                    )}
-                  </div>
-                </Field>
+                  </Field>
 
-                <Field label="Tasa BCV del día (VES/USD)" htmlFor="rate" className="sm:col-span-2">
-                  <div className="flex gap-2 items-center">
-                    <Input
-                      id="rate"
-                      type="number"
-                      step="any"
-                      inputMode="decimal"
-                      value={rateInput}
-                      onChange={(e) => handleRateChange(e.target.value)}
-                      placeholder="36.00"
-                      className="flex-1"
-                    />
-                    {rateInput !== defaultRate && (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleRateChange(defaultRate)}
-                        className="shrink-0 font-bold"
-                      >
-                        Restaurar ({defaultRate})
-                      </Button>
-                    )}
+                  <div className="sm:col-span-2 pt-4 border-t border-border/40 flex justify-end gap-3">
+                    <Button type="button" variant="secondary" onClick={() => setMostrarForm(false)}>
+                      Cancelar
+                    </Button>
+                    <Button type="button" onClick={() => setStep(2)} className="shadow-md">
+                      Siguiente
+                    </Button>
                   </div>
-                </Field>
-
-                {/* Factura Upload area */}
-                <div className="sm:col-span-2">
-                  <span className="text-sm font-semibold text-ink block mb-2">Archivo de Factura o Comprobante (Público)</span>
-                  <label
-                    htmlFor="invoice"
-                    className="mt-1 flex flex-col items-center justify-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border-strong bg-background p-6 text-center text-ink-muted hover:bg-surface hover:border-brand/35 hover:text-brand transition-all duration-200 shadow-sm"
-                  >
-                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-sunken text-ink-muted group-hover:text-brand transition-colors">
-                      <IconUpload size={18} />
-                    </span>
-                    <span className="text-sm font-semibold">{fileName || "Haz clic para subir foto o PDF de la factura"}</span>
-                    <span className="text-[10px] text-ink-subtle">Soporta imágenes y archivos PDF de hasta 8MB</span>
-                    <input
-                      id="invoice"
-                      name="invoice"
-                      type="file"
-                      accept="image/*,application/pdf"
-                      capture="environment"
-                      className="sr-only"
-                      onChange={(e) => setFileName(e.target.files?.[0]?.name ?? "")}
-                    />
-                  </label>
                 </div>
 
-                {error && <p className="text-sm text-danger sm:col-span-2 font-medium">{error}</p>}
-                <div className="sm:col-span-2 pt-2 border-t border-border/45 flex justify-end gap-3">
-                  <Button type="button" variant="secondary" onClick={() => setMostrarForm(false)} disabled={estado === "enviando"}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit" size="lg" disabled={estado === "enviando"} className="shadow-sm">
-                    {estado === "enviando" ? "Guardando..." : "Registrar Compra"}
-                  </Button>
+                {/* Paso 2: Montos y Factura */}
+                <div className={step === 2 ? "grid gap-5 sm:grid-cols-2" : "hidden"}>
+                  <div className="sm:col-span-2 flex justify-between items-center border-b border-border/60 pb-2 mb-2">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-brand/85">
+                      Paso 2: Monto y Comprobante
+                    </h4>
+                    <span className="text-[10px] font-bold bg-brand-soft/20 text-brand px-2 py-0.5 rounded-full">Paso 2 de 2</span>
+                  </div>
+
+                  <Field label="Monto en Dólares ($)" htmlFor="amountUsd">
+                    <div className="relative">
+                      <Input
+                        id="amountUsd"
+                        type="number"
+                        step="any"
+                        inputMode="decimal"
+                        value={usdVal}
+                        onChange={(e) => handleUsdChange(e.target.value)}
+                        placeholder="0.00"
+                        className={primaryCurrency === "USD" && usdVal ? "border-brand ring-1 ring-brand" : ""}
+                      />
+                      {primaryCurrency === "USD" && usdVal && (
+                        <span className="absolute right-3 top-2.5 text-[9px] bg-brand text-brand-contrast px-2 py-0.5 rounded-full font-bold select-none uppercase tracking-wider">
+                          Registro USD
+                        </span>
+                      )}
+                    </div>
+                  </Field>
+
+                  <Field label="Monto en Bolívares (Bs.)" htmlFor="amountVes">
+                    <div className="relative">
+                      <Input
+                        id="amountVes"
+                        type="number"
+                        step="any"
+                        inputMode="decimal"
+                        value={vesVal}
+                        onChange={(e) => handleVesChange(e.target.value)}
+                        placeholder="0.00"
+                        className={primaryCurrency === "VES" && vesVal ? "border-brand ring-1 ring-brand" : ""}
+                      />
+                      {primaryCurrency === "VES" && vesVal && (
+                        <span className="absolute right-3 top-2.5 text-[9px] bg-brand text-brand-contrast px-2 py-0.5 rounded-full font-bold select-none uppercase tracking-wider">
+                          Registro Bs.
+                        </span>
+                      )}
+                    </div>
+                  </Field>
+
+                  <Field label="Tasa BCV del día (VES/USD)" htmlFor="rate" className="sm:col-span-2">
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        id="rate"
+                        type="number"
+                        step="any"
+                        inputMode="decimal"
+                        value={rateInput}
+                        onChange={(e) => handleRateChange(e.target.value)}
+                        placeholder="36.00"
+                        className="flex-1"
+                      />
+                      {rateInput !== defaultRate && (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleRateChange(defaultRate)}
+                          className="shrink-0 font-bold"
+                        >
+                          Restaurar ({defaultRate})
+                        </Button>
+                      )}
+                    </div>
+                  </Field>
+
+                  {/* Factura Upload area */}
+                  <div className="sm:col-span-2">
+                    <span className="text-sm font-semibold text-ink block mb-2">Archivo de Factura o Comprobante (Público)</span>
+                    <label
+                      htmlFor="invoice"
+                      className="mt-1 flex flex-col items-center justify-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border-strong bg-background p-6 text-center text-ink-muted hover:bg-surface hover:border-brand/35 hover:text-brand transition-all duration-200 shadow-sm"
+                    >
+                      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-sunken text-ink-muted group-hover:text-brand transition-colors">
+                        <IconUpload size={18} />
+                      </span>
+                      <span className="text-sm font-semibold">{fileName || "Haz clic para subir foto o PDF de la factura"}</span>
+                      <span className="text-[10px] text-ink-subtle">Soporta imágenes y archivos PDF de hasta 8MB</span>
+                      <input
+                        id="invoice"
+                        name="invoice"
+                        type="file"
+                        accept="image/*,application/pdf"
+                        capture="environment"
+                        className="sr-only"
+                        onChange={(e) => setFileName(e.target.files?.[0]?.name ?? "")}
+                      />
+                    </label>
+                  </div>
+
+                  {error && <p className="text-sm text-danger sm:col-span-2 font-medium">{error}</p>}
+                  <div className="sm:col-span-2 pt-4 border-t border-border/45 flex justify-end gap-3">
+                    <Button type="button" variant="secondary" onClick={() => setStep(1)} disabled={estado === "enviando"}>
+                      Atrás
+                    </Button>
+                    <Button type="submit" disabled={estado === "enviando"} className="shadow-md">
+                      {estado === "enviando" ? "Guardando..." : "Registrar Compra"}
+                    </Button>
+                  </div>
                 </div>
               </form>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <section className="space-y-4">
@@ -384,7 +422,7 @@ export default function AdminEgresosPage() {
       </section>
 
       {/* Modal para visualizar el comprobante */}
-      {modalUrl && (
+      {mounted && modalUrl && createPortal(
         <div className="fixed inset-0 z-50 flex justify-center items-start overflow-y-auto bg-black/75 backdrop-blur-sm p-4 sm:p-6 transition-opacity animate-in fade-in duration-200">
           <div className="relative max-w-3xl w-full bg-surface rounded-xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto animate-in zoom-in-95 duration-200">
             {/* Cabecera del Modal */}
@@ -436,7 +474,8 @@ export default function AdminEgresosPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -147,5 +147,6 @@ export const paymentInfoSchema = z.object({
   details: z.string().min(2, "Escribe los datos a mostrar."),
   isActive: zBool(true),
   sortOrder: z.coerce.number().int().default(0),
+  defaultCurrency: z.enum(["USD", "VES"]).default("USD"),
 });
 export type PaymentInfoInput = z.infer<typeof paymentInfoSchema>;

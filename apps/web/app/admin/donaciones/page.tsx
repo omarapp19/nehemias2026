@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Button,
   Card,
@@ -37,6 +38,11 @@ export default function AdminDonacionesPage() {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [modalUrl, setModalUrl] = useState<string | null>(null);
   const [modalLabel, setModalLabel] = useState<string>("");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (modalUrl || mostrarForm) {
@@ -93,7 +99,7 @@ export default function AdminDonacionesPage() {
         </Button>
       </div>
 
-      {mostrarForm && (
+      {mounted && mostrarForm && createPortal(
         <div className="fixed inset-0 z-50 flex justify-center items-start overflow-y-auto bg-black/60 backdrop-blur-sm p-4 sm:p-6 md:p-8">
           <div className="relative max-w-2xl w-full bg-white rounded-2xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto animate-in zoom-in-95 duration-200">
             {/* Cabecera del Modal */}
@@ -115,7 +121,8 @@ export default function AdminDonacionesPage() {
               <ManualForm onDone={() => { setMostrarForm(false); cargar(tab); }} onCancel={() => setMostrarForm(false)} />
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Pestañas y estadísticas resumidas */}
@@ -271,7 +278,7 @@ export default function AdminDonacionesPage() {
       )}
 
       {/* Modal para visualizar el comprobante */}
-      {modalUrl && (
+      {mounted && modalUrl && createPortal(
         <div className="fixed inset-0 z-50 flex justify-center items-start overflow-y-auto bg-black/75 backdrop-blur-sm p-4 sm:p-6 transition-opacity animate-in fade-in duration-200">
           <div className="relative max-w-3xl w-full bg-surface rounded-xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto animate-in zoom-in-95 duration-200">
             {/* Cabecera del Modal */}
@@ -323,7 +330,8 @@ export default function AdminDonacionesPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -333,7 +341,8 @@ function ManualForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
   const [anon, setAnon] = useState(false);
   const [estado, setEstado] = useState<"idle" | "enviando">("idle");
   const [error, setError] = useState("");
-  const [metodos, setMetodos] = useState<{ id: string; label: string; isActive: boolean }[]>([]);
+  const [step, setStep] = useState(1);
+  const [metodos, setMetodos] = useState<{ id: string; label: string; isActive: boolean; defaultCurrency: "USD" | "VES" }[]>([]);
 
   // Form states matching user request
   const [tipoAporte, setTipoAporte] = useState<"financial" | "in_kind">("financial");
@@ -360,7 +369,11 @@ function ManualForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
     apiCaptacion()
       .then((r) => {
         if (r.captacion) {
-          setMetodos(r.captacion.filter((m: any) => m.isActive));
+          const activeMethods = r.captacion.filter((m: any) => m.isActive);
+          setMetodos(activeMethods);
+          if (activeMethods.length > 0 && activeMethods[0].defaultCurrency) {
+            handleMonedaChange(activeMethods[0].defaultCurrency);
+          }
         }
       })
       .catch(() => {});
@@ -408,6 +421,13 @@ function ManualForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
     updateEquivalente(montoOriginal, moneda, val);
   };
 
+  const handleMetodoChange = (methodLabel: string) => {
+    const found = metodos.find((m) => m.label === methodLabel);
+    if (found && found.defaultCurrency) {
+      handleMonedaChange(found.defaultCurrency);
+    }
+  };
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setEstado("enviando");
@@ -431,6 +451,8 @@ function ManualForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
       if (refNum) data.set("referenceNumber", refNum);
     } else {
       // in_kind
+      data.delete("method");
+      data.delete("referenceNumber");
       if (!inKindDesc.trim()) {
         setError("Indica la descripción del insumo.");
         setEstado("idle");
@@ -449,6 +471,7 @@ function ManualForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
     try {
       await apiCrearDonacion(data);
       form.reset();
+      setStep(1);
       setMontoOriginal("");
       setEquivalenteUsd("");
       setRefNum("");
@@ -466,235 +489,258 @@ function ManualForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       
-      {/* Sección 1: Datos de Control */}
-      <div className="space-y-4">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-brand/80 border-b border-border/60 pb-1.5">
-          1. Datos de Control y Método
-        </h3>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Tipo de Aporte" htmlFor="m-tipo" required>
-            <Select
-              id="m-tipo"
-              name="type"
-              value={tipoAporte}
-              onChange={(e) => setTipoAporte(e.target.value as any)}
-              required
-            >
-              <option value="financial">Monetario (Financiero)</option>
-              <option value="in_kind">En especie (Insumos)</option>
-            </Select>
-          </Field>
+      {/* Paso 1: Datos de Control y Aporte Inicial */}
+      <div className={step === 1 ? "space-y-6" : "hidden"}>
+        <div className="space-y-4">
+          <div className="flex justify-between items-center border-b border-border/60 pb-2">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-brand/85">
+              Paso 1: Información de Control y Origen
+            </h3>
+            <span className="text-[10px] font-bold bg-brand-soft/20 text-brand px-2 py-0.5 rounded-full">Paso 1 de 2</span>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Tipo de Aporte" htmlFor="m-tipo" required>
+              <Select
+                id="m-tipo"
+                name="type"
+                value={tipoAporte}
+                onChange={(e) => setTipoAporte(e.target.value as any)}
+                required
+              >
+                <option value="financial">Monetario (Financiero)</option>
+                <option value="in_kind">En especie (Insumos)</option>
+              </Select>
+            </Field>
 
-          <Field label="Fecha de Recepción" htmlFor="m-fecha" required>
-            <Input
-              id="m-fecha"
-              name="donatedAt"
-              type="date"
-              value={spentAt}
-              onChange={(e) => setSpentAt(e.target.value)}
-              required
-            />
-          </Field>
+            <Field label="Fecha de Recepción" htmlFor="m-fecha" required>
+              <Input
+                id="m-fecha"
+                name="donatedAt"
+                type="date"
+                value={spentAt}
+                onChange={(e) => setSpentAt(e.target.value)}
+                required
+              />
+            </Field>
 
-          <Field label="# Referencia (Opcional)" htmlFor="m-ref">
-            <Input
-              id="m-ref"
-              name="referenceNumber"
-              value={refNum}
-              onChange={(e) => setRefNum(e.target.value)}
-              placeholder="Ej: 981247"
-            />
-          </Field>
+            {tipoAporte === "financial" && (
+              <>
+                <Field label="# Referencia (Opcional)" htmlFor="m-ref">
+                  <Input
+                    id="m-ref"
+                    name="referenceNumber"
+                    value={refNum}
+                    onChange={(e) => setRefNum(e.target.value)}
+                    placeholder="Ej: 981247"
+                  />
+                </Field>
 
-          <Field label="Método de Pago / Recepción" htmlFor="m-metodo" required>
-            <Select id="m-metodo" name="method" required>
-              {metodos.map((m) => (
-                <option key={m.id} value={m.label}>
-                  {m.label}
-                </option>
-              ))}
-              {metodos.length === 0 && (
-                <>
-                  <option value="Pago Móvil">Pago Móvil</option>
-                  <option value="Transferencia">Transferencia</option>
-                  <option value="Efectivo">Efectivo</option>
-                  <option value="Otro">Otro</option>
-                </>
-              )}
-            </Select>
-          </Field>
+                <Field label="Método de Pago / Recepción" htmlFor="m-metodo" required>
+                  <Select id="m-metodo" name="method" required onChange={(e) => handleMetodoChange(e.target.value)}>
+                    {metodos.map((m) => (
+                      <option key={m.id} value={m.label}>
+                        {m.label}
+                      </option>
+                    ))}
+                    {metodos.length === 0 && (
+                      <>
+                        <option value="Pago Móvil">Pago Móvil</option>
+                        <option value="Transferencia">Transferencia</option>
+                        <option value="Efectivo">Efectivo</option>
+                        <option value="Otro">Otro</option>
+                      </>
+                    )}
+                  </Select>
+                </Field>
+              </>
+            )}
+
+            {tipoAporte === "in_kind" && (
+              <>
+                <Field label="Descripción del Insumo" htmlFor="m-ik-desc" required className="sm:col-span-2">
+                  <Input
+                    id="m-ik-desc"
+                    value={inKindDesc}
+                    onChange={(e) => setInKindDesc(e.target.value)}
+                    placeholder="Ej: Frazadas térmicas, Harina de maíz"
+                    required
+                  />
+                </Field>
+
+                <Field label="Cantidad Donada" htmlFor="m-ik-qty" required>
+                  <Input
+                    id="m-ik-qty"
+                    type="number"
+                    step="any"
+                    value={inKindQty}
+                    onChange={(e) => setInKindQty(e.target.value)}
+                    required
+                  />
+                </Field>
+
+                <Field label="Unidad de Medida" htmlFor="m-ik-unit" required>
+                  <Input
+                    id="m-ik-unit"
+                    value={inKindUnit}
+                    onChange={(e) => setInKindUnit(e.target.value)}
+                    placeholder="Ej: unidades, bultos, kg"
+                    required
+                  />
+                </Field>
+              </>
+            )}
+          </div>
+        </div>
+
+        {error && (
+          <p role="alert" className="text-sm font-semibold text-danger bg-danger-soft/30 border border-danger/10 p-3 rounded-lg">
+            {error}
+          </p>
+        )}
+
+        <div className="pt-4 border-t border-border/40 flex justify-end gap-3">
+          <Button type="button" variant="secondary" onClick={onCancel} disabled={estado === "enviando"}>
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            onClick={() => {
+              if (tipoAporte === "in_kind" && !inKindDesc.trim()) {
+                setError("Indica la descripción del insumo.");
+                return;
+              }
+              setError("");
+              setStep(2);
+            }}
+            className="shadow-md"
+          >
+            Siguiente
+          </Button>
         </div>
       </div>
 
-      {/* Sección 2: Valores Financieros o Detalles Físicos */}
-      <div className="space-y-4">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-brand/80 border-b border-border/60 pb-1.5">
-          2. Detalles del Aporte
-        </h3>
-        
-        {tipoAporte === "financial" ? (
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Monto Original" htmlFor="m-monto" required>
-                <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-ink-subtle text-sm font-semibold select-none">
-                    {moneda === "USD" ? "$" : "Bs."}
-                  </span>
-                  <Input
-                    id="m-monto"
-                    type="number"
-                    step="any"
-                    inputMode="decimal"
-                    value={montoOriginal}
-                    onChange={(e) => handleMontoChange(e.target.value)}
-                    placeholder="0.00"
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </Field>
+      {/* Paso 2: Detalles Financieros e Identificación */}
+      <div className={step === 2 ? "space-y-6" : "hidden"}>
+        <div className="space-y-4">
+          <div className="flex justify-between items-center border-b border-border/60 pb-2">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-brand/85">
+              Paso 2: Detalles del Aporte e Identidad
+            </h3>
+            <span className="text-[10px] font-bold bg-brand-soft/20 text-brand px-2 py-0.5 rounded-full">Paso 2 de 2</span>
+          </div>
 
-              <Field label="Moneda de Recepción" htmlFor="m-moneda" required>
-                <Select
-                  id="m-moneda"
-                  name="currency"
-                  value={moneda}
-                  onChange={(e) => handleMonedaChange(e.target.value as any)}
-                  required
-                >
-                  <option value="USD">Dólares (USD)</option>
-                  <option value="VES">Bolívares (Bs. / VES)</option>
-                </Select>
-              </Field>
+          {tipoAporte === "financial" && (
+            <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Monto Original" htmlFor="m-monto" required>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-ink-subtle text-sm font-semibold select-none">
+                      {moneda === "USD" ? "$" : "Bs."}
+                    </span>
+                    <Input
+                      id="m-monto"
+                      type="number"
+                      step="any"
+                      inputMode="decimal"
+                      value={montoOriginal}
+                      onChange={(e) => handleMontoChange(e.target.value)}
+                      placeholder="0.00"
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </Field>
 
-              <Field label="Tasa BCV de cambio (VES/USD)" htmlFor="m-rate" required className="sm:col-span-2">
-                <div className="flex gap-2 items-center">
-                  <Input
-                    id="m-rate"
-                    type="number"
-                    step="any"
-                    inputMode="decimal"
-                    value={rateInput}
-                    onChange={(e) => handleRateChange(e.target.value)}
-                    placeholder="36.00"
-                    className="flex-1"
-                    required
-                  />
-                  {rateInput !== defaultRate && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => handleRateChange(defaultRate)}
-                      className="shrink-0 font-semibold"
-                    >
-                      Restaurar ({defaultRate})
-                    </Button>
-                  )}
-                </div>
-              </Field>
-            </div>
-
-            {/* Carta destacada para Equivalente USD */}
-            <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-brand/20 rounded-2xl p-5 flex flex-col justify-center items-center text-center shadow-inner relative overflow-hidden">
-              <div className="absolute right-3 top-3 opacity-10">
-                <BrandMark size={48} />
+                <Field label="Tasa BCV de cambio (VES/USD)" htmlFor="m-rate" required>
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      id="m-rate"
+                      type="number"
+                      step="any"
+                      inputMode="decimal"
+                      value={rateInput}
+                      onChange={(e) => handleRateChange(e.target.value)}
+                      placeholder="36.00"
+                      className="flex-1"
+                      required
+                    />
+                    {rateInput !== defaultRate && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleRateChange(defaultRate)}
+                        className="shrink-0 font-semibold"
+                      >
+                        Restaurar ({defaultRate})
+                      </Button>
+                    )}
+                  </div>
+                </Field>
               </div>
-              <span className="text-[10px] font-bold text-brand uppercase tracking-widest">
-                Equivalente Contable Declarado
-              </span>
-              <span className="text-3xl font-black text-brand font-mono mt-1.5">
-                $ {equivalenteUsd || "0.00"}
-              </span>
-              <span className="text-[10px] text-ink-subtle mt-1">
-                Calculado en base a la tasa de cambio del Banco Central de Venezuela.
-              </span>
+
+              {/* Carta destacada para Equivalente USD */}
+              <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-brand/20 rounded-2xl p-5 flex flex-col justify-center items-center text-center shadow-inner relative overflow-hidden">
+                <div className="absolute right-3 top-3 opacity-10">
+                  <BrandMark size={48} />
+                </div>
+                <span className="text-[10px] font-bold text-brand uppercase tracking-widest">
+                  Equivalente Contable Declarado
+                </span>
+                <span className="text-3xl font-black text-brand font-mono mt-1.5">
+                  $ {equivalenteUsd || "0.00"}
+                </span>
+                <span className="text-[10px] text-ink-subtle mt-1">
+                  Calculado en base a la tasa de cambio del Banco Central de Venezuela.
+                </span>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Descripción del Insumo" htmlFor="m-ik-desc" required className="sm:col-span-2">
-              <Input
-                id="m-ik-desc"
-                value={inKindDesc}
-                onChange={(e) => setInKindDesc(e.target.value)}
-                placeholder="Ej: Frazadas térmicas, Harina de maíz"
-                required
-              />
-            </Field>
-
-            <Field label="Cantidad Donada" htmlFor="m-ik-qty" required>
-              <Input
-                id="m-ik-qty"
-                type="number"
-                step="any"
-                value={inKindQty}
-                onChange={(e) => setInKindQty(e.target.value)}
-                required
-              />
-            </Field>
-
-            <Field label="Unidad de Medida" htmlFor="m-ik-unit" required>
-              <Input
-                id="m-ik-unit"
-                value={inKindUnit}
-                onChange={(e) => setInKindUnit(e.target.value)}
-                placeholder="Ej: unidades, bultos, kg"
-                required
-              />
-            </Field>
-          </div>
-        )}
-      </div>
-
-      {/* Sección 3: Datos del Donante */}
-      <div className="space-y-4">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-brand/80 border-b border-border/60 pb-1.5">
-          3. Datos del Donante y Mensaje
-        </h3>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {!anon && (
-            <Field label="Nombre Completo del Donante" htmlFor="m-nombre" className="sm:col-span-2">
-              <Input id="m-nombre" name="donorName" placeholder="Ej: Juan Pérez o Empresa C.A." />
-            </Field>
           )}
 
-          <Field label="Mensaje de Aliento (Opcional)" htmlFor="m-msg" className="sm:col-span-2">
-            <Textarea
-              id="m-msg"
-              name="message"
-              maxLength={280}
-              placeholder="Mensaje corto de agradecimiento o aliento para la comunidad..."
-            />
-          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {!anon && (
+              <Field label="Nombre Completo del Donante" htmlFor="m-nombre" className="sm:col-span-2">
+                <Input id="m-nombre" name="donorName" placeholder="Ej: Juan Pérez o Empresa C.A." />
+              </Field>
+            )}
 
-          <div className="sm:col-span-2 flex items-center gap-2 py-1">
-            <label className="inline-flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-ink select-none">
-              <input
-                type="checkbox"
-                checked={anon}
-                onChange={(e) => setAnon(e.target.checked)}
-                className="h-4.5 w-4.5 rounded border-border text-brand focus:ring-brand accent-[color:rgb(var(--color-brand))]"
+            <Field label="Mensaje de Aliento (Opcional)" htmlFor="m-msg" className="sm:col-span-2">
+              <Textarea
+                id="m-msg"
+                name="message"
+                maxLength={280}
+                placeholder="Mensaje corto de agradecimiento o aliento para la comunidad..."
               />
-              Registrar como Aporte Anónimo
-            </label>
+            </Field>
+
+            <div className="sm:col-span-2 flex items-center gap-2 py-1">
+              <label className="inline-flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-ink select-none">
+                <input
+                  type="checkbox"
+                  checked={anon}
+                  onChange={(e) => setAnon(e.target.checked)}
+                  className="h-4.5 w-4.5 rounded border-border text-brand focus:ring-brand accent-[color:rgb(var(--color-brand))]"
+                />
+                Registrar como Aporte Anónimo
+              </label>
+            </div>
           </div>
         </div>
-      </div>
 
-      {error && (
-        <p role="alert" className="text-sm font-semibold text-danger bg-danger-soft/30 border border-danger/10 p-3 rounded-lg">
-          {error}
-        </p>
-      )}
-      
-      <div className="pt-2 border-t border-border/40 flex justify-end gap-3">
-        <Button type="button" variant="secondary" onClick={onCancel} disabled={estado === "enviando"}>
-          Cancelar
-        </Button>
-        <Button type="submit" disabled={estado === "enviando"} className="shadow-md">
-          {estado === "enviando" ? "Registrando..." : "Guardar como Verificada"}
-        </Button>
+        {error && (
+          <p role="alert" className="text-sm font-semibold text-danger bg-danger-soft/30 border border-danger/10 p-3 rounded-lg">
+            {error}
+          </p>
+        )}
+
+        <div className="pt-4 border-t border-border/40 flex justify-end gap-3">
+          <Button type="button" variant="secondary" onClick={() => setStep(1)} disabled={estado === "enviando"}>
+            Atrás
+          </Button>
+          <Button type="submit" disabled={estado === "enviando"} className="shadow-md">
+            {estado === "enviando" ? "Registrando..." : "Guardar como Verificada"}
+          </Button>
+        </div>
       </div>
     </form>
   );

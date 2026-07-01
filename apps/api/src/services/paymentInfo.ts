@@ -20,6 +20,7 @@ export function createPaymentInfo(input: PaymentInfoInput) {
       details: input.details,
       isActive: input.isActive ?? true,
       sortOrder: input.sortOrder ?? 0,
+      defaultCurrency: input.defaultCurrency,
     },
   });
 }
@@ -32,6 +33,7 @@ export function updatePaymentInfo(id: string, input: PaymentInfoInput) {
       details: input.details,
       isActive: input.isActive ?? true,
       sortOrder: input.sortOrder ?? 0,
+      defaultCurrency: input.defaultCurrency,
     },
   });
 }
