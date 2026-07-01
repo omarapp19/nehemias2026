@@ -226,9 +226,12 @@ export default function AdminEgresosPage() {
 
             {/* Contenido del Modal */}
             <div className="flex-1 overflow-auto bg-muted/10 p-4 flex items-center justify-center min-h-[300px]">
-              {modalUrl.toLowerCase().endsWith(".pdf") ? (
+              {modalUrl.toLowerCase().endsWith(".pdf") || modalUrl.includes("drive.google.com") ? (
                 <iframe
-                  src={modalUrl}
+                  src={modalUrl.includes("drive.google.com") ? (() => {
+                    const match = modalUrl.match(/\/d\/([a-zA-Z0-9-_]+)/) || modalUrl.match(/[?&]id=([a-zA-Z0-9-_]+)/);
+                    return match ? `https://drive.google.com/file/d/${match[1]}/preview` : modalUrl;
+                  })() : modalUrl}
                   title="Factura PDF"
                   className="w-full h-[60vh] border-0 rounded-md shadow-sm bg-background"
                 />

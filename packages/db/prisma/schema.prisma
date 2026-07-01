@@ -99,14 +99,15 @@ model InKindItem {
 
 // ---------- EGRESOS / COMPRAS ----------
 model Expense {
-  id          String   @id @default(uuid())
-  description String
-  amount      Decimal  @db.Decimal(14, 2)
-  currency    Currency @default(USD)
-  category    String? // medicinas, alimentos, logística...
-  supplier    String?
-  invoiceUrl  String? // factura PÚBLICA (comprobante de auditoría)
+  id            String   @id @default(uuid())
+  description   String
+  amount        Decimal  @db.Decimal(14, 2)
+  currency      Currency @default(USD)
+  category      String? // medicinas, alimentos, logística...
+  supplier      String?
+  invoiceUrl    String? // factura PÚBLICA (comprobante de auditoría)
   invoiceNumber String?
+  exchangeRate  Decimal? @db.Decimal(10, 4)
 
   // si la compra es de insumos, alimenta el inventario
   createsStock Boolean  @default(false)
@@ -212,4 +213,12 @@ model PaymentInfo {
   isActive        Boolean  @default(true)
   sortOrder       Int      @default(0)
   defaultCurrency Currency @default(USD)
+}
+
+// ---------- GALERÍA DE FOTOS (público) ----------
+model GalleryPhoto {
+  id        String   @id @default(uuid())
+  url       String
+  title     String?
+  createdAt DateTime @default(now())
 }

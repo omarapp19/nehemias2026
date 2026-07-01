@@ -19,6 +19,7 @@ export async function createExpense(
         supplier: input.supplier ?? null,
         invoiceUrl: invoiceUrl ?? null,
         invoiceNumber: input.invoiceNumber ?? null,
+        exchangeRate: input.exchangeRate !== undefined && input.exchangeRate !== null ? new Prisma.Decimal(input.exchangeRate) : null,
         createsStock: input.createsStock ?? false,
         spentAt: input.spentAt ?? new Date(),
         createdById: adminId,
@@ -51,7 +52,7 @@ export async function listPublicExpenses(limit?: number) {
 }
 
 export function getExpensesForBalance() {
-  return prisma.expense.findMany({ select: { amount: true, currency: true } });
+  return prisma.expense.findMany({ select: { amount: true, currency: true, exchangeRate: true } });
 }
 
 /** Actualiza campos editables de un egreso. */
@@ -72,6 +73,7 @@ export async function updateExpense(
       ...(input.category !== undefined && { category: input.category ?? null }),
       ...(input.supplier !== undefined && { supplier: input.supplier ?? null }),
       ...(input.invoiceNumber !== undefined && { invoiceNumber: input.invoiceNumber ?? null }),
+      ...(input.exchangeRate !== undefined && { exchangeRate: input.exchangeRate !== null ? new Prisma.Decimal(input.exchangeRate) : null }),
       ...(input.spentAt !== undefined && { spentAt: input.spentAt }),
       ...(invoiceUrl !== undefined && { invoiceUrl: invoiceUrl ?? expense.invoiceUrl }),
     },

@@ -114,17 +114,17 @@ export default function AdminDashboard() {
           </Link>
           
           <Link
-            href="/admin/entregas"
+            href="/admin/galeria"
             className="flex flex-col items-start p-6 rounded-2xl border border-border/80 bg-white hover:border-brand/40 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 group text-left relative overflow-hidden"
           >
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-surface-sunken text-ink-muted group-hover:bg-brand-soft group-hover:text-brand transition-colors mb-4 border border-border/40 shadow-inner">
               <IconCamera size={20} />
             </span>
             <span className="font-bold text-sm text-ink group-hover:text-brand transition-colors flex items-center gap-1.5">
-              Registrar una entrega
+              Galería de fotos
               <IconArrowRight size={14} className="opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
             </span>
-            <span className="text-xs text-ink-subtle mt-2 leading-relaxed">Registra entregas de insumos con evidencia fotográfica en los frentes de ayuda.</span>
+            <span className="text-xs text-ink-subtle mt-2 leading-relaxed">Sube y administra imágenes de las jornadas en la galería pública.</span>
           </Link>
 
           <Link

@@ -26,8 +26,8 @@ export function SiteFooter() {
             <Link href="/necesidades" className="text-ink-muted hover:text-ink">
               Necesidades
             </Link>
-            <Link href="/entregas" className="text-ink-muted hover:text-ink">
-              Entregas
+            <Link href="/galeria" className="text-ink-muted hover:text-ink">
+              Galería
             </Link>
             <Link href="/donar" className="text-ink-muted hover:text-ink">
               Quiero ayudar

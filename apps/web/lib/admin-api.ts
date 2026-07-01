@@ -76,10 +76,10 @@ export const apiActualizarFrente = (id: string, data: unknown) =>
   apiJson(`/admin/frentes/${id}`, "PUT", data);
 export const apiEliminarFrente = (id: string) => apiJson(`/admin/frentes/${id}`, "DELETE", {});
 
-// — Entregas —
-export const apiEntregas = () => apiGet("/admin/entregas");
-export const apiCrearEntrega = (form: FormData) => apiForm("/admin/entregas", form);
-export const apiEliminarEntrega = (id: string) => apiJson(`/admin/entregas/${id}`, "DELETE", {});
+// — Galería —
+export const apiGaleria = () => apiGet("/admin/galeria");
+export const apiSubirFotos = (form: FormData) => apiForm("/admin/galeria", form);
+export const apiEliminarFoto = (id: string) => apiJson(`/admin/galeria/${id}`, "DELETE", {});
 
 // — Captación —
 export const apiCaptacion = () => apiGet("/admin/captacion");

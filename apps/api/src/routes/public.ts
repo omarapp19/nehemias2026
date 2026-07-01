@@ -1,6 +1,7 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { declareDonationSchema } from "@nehemias/core";
+import { prisma } from "@nehemias/db";
 import { asyncHandler, ApiError } from "../http.js";
 import { upload } from "../uploads/middleware.js";
 import { processAndStore } from "../uploads/images.js";
@@ -10,8 +11,6 @@ import {
 } from "../services/donations.js";
 import { listPublicExpenses } from "../services/expenses.js";
 import { listSupplies, listUrgentSupplies } from "../services/inventory.js";
-import { listFrentes } from "../services/frentes.js";
-import { listPublicDeliveries, getPublicDelivery } from "../services/deliveries.js";
 import { getBalances } from "../services/transparency.js";
 import { listActivePaymentInfo } from "../services/paymentInfo.js";
 import { toPublicSupply } from "@nehemias/core";
@@ -36,17 +35,19 @@ function parseMaybeJson<T>(value: unknown): T | undefined {
   }
 }
 
-// ---------- Lecturas públicas ----------
 publicRouter.get(
   "/home",
   asyncHandler(async (_req, res) => {
-    const [{ balances, exchangeRate }, urgentes, donaciones, egresos, entregas, captacion] = await Promise.all([
+    const [{ balances, exchangeRate }, urgentes, donaciones, egresos, captacion, fotos] = await Promise.all([
       getBalances(),
       listUrgentSupplies(),
-      listPublicVerifiedDonations(6),
-      listPublicExpenses(6),
-      listPublicDeliveries(4),
+      listPublicVerifiedDonations(),
+      listPublicExpenses(),
       listActivePaymentInfo(),
+      prisma.galleryPhoto.findMany({
+        take: 8,
+        orderBy: { createdAt: "desc" },
+      }),
     ]);
     res.json({
       balances,
@@ -54,8 +55,8 @@ publicRouter.get(
       urgentes: urgentes.map(toPublicSupply),
       ultimasDonaciones: donaciones,
       ultimosEgresos: egresos,
-      ultimasEntregas: entregas,
       captacion,
+      ultimasFotos: fotos,
     });
   }),
 );
@@ -96,24 +97,14 @@ publicRouter.get(
   }),
 );
 
-publicRouter.get(
-  "/frentes",
-  asyncHandler(async (_req, res) => res.json({ frentes: await listFrentes() })),
-);
 
 publicRouter.get(
-  "/entregas",
-  asyncHandler(async (_req, res) =>
-    res.json({ entregas: await listPublicDeliveries(100) }),
-  ),
-);
-
-publicRouter.get(
-  "/entregas/:id",
-  asyncHandler(async (req, res) => {
-    const entrega = await getPublicDelivery(req.params.id);
-    if (!entrega) throw new ApiError(404, "Entrega no encontrada.");
-    res.json({ entrega });
+  "/galeria",
+  asyncHandler(async (_req, res) => {
+    const fotos = await prisma.galleryPhoto.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+    res.json({ fotos });
   }),
 );
 

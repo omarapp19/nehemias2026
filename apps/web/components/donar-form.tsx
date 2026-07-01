@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button, Field, Input, Select, Textarea, IconCheck, IconCamera } from "@nehemias/ui";
 import { PUBLIC_API_BASE } from "@/lib/config";
 
@@ -11,10 +11,12 @@ export function DonarForm() {
   const [anonimo, setAnonimo] = useState(false);
   const [error, setError] = useState<string>("");
   const [fileName, setFileName] = useState<string>("");
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [metodos, setMetodos] = useState<{ id: string; label: string; isActive: boolean; defaultCurrency?: "USD" | "VES" }[]>([]);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Form states matching user request
-  const [tipoAporte, setTipoAporte] = useState<"financial" | "in_kind">("financial");
+  // Form states matching financial donations only
   const [montoOriginal, setMontoOriginal] = useState("");
   const [moneda, setMoneda] = useState<"USD" | "VES">("USD");
   const [rateInput, setRateInput] = useState("36.00");
@@ -27,11 +29,6 @@ export function DonarForm() {
     const localDate = new Date(d.getTime() - offset * 60 * 1000);
     return localDate.toISOString().split("T")[0];
   });
-
-  // For in_kind
-  const [inKindDesc, setInKindDesc] = useState("");
-  const [inKindQty, setInKindQty] = useState("1");
-  const [inKindUnit, setInKindUnit] = useState("unidades");
 
   useEffect(() => {
     fetch(`${PUBLIC_API_BASE}/public/captacion`)
@@ -58,6 +55,15 @@ export function DonarForm() {
       })
       .catch(() => {});
   }, []);
+
+  // Cleanup preview URL on unmount
+  useEffect(() => {
+    return () => {
+      if (imagePreviewUrl) {
+        URL.revokeObjectURL(imagePreviewUrl);
+      }
+    };
+  }, [imagePreviewUrl]);
 
   const updateEquivalente = (monto: string, curr: "USD" | "VES", rate: string) => {
     const numMonto = parseFloat(monto);
@@ -97,6 +103,37 @@ export function DonarForm() {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (imagePreviewUrl) {
+      URL.revokeObjectURL(imagePreviewUrl);
+      setImagePreviewUrl(null);
+    }
+
+    if (file) {
+      setFileName(file.name);
+      if (file.type.startsWith("image/")) {
+        const url = URL.createObjectURL(file);
+        setImagePreviewUrl(url);
+      }
+    } else {
+      setFileName("");
+    }
+  };
+
+  const handleRemoveFile = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setFileName("");
+    if (imagePreviewUrl) {
+      URL.revokeObjectURL(imagePreviewUrl);
+      setImagePreviewUrl(null);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setEstado("enviando");
@@ -104,37 +141,20 @@ export function DonarForm() {
 
     const form = e.currentTarget;
     const data = new FormData(form);
-    data.set("type", tipoAporte);
+    data.set("type", "financial");
     data.set("isAnonymous", anonimo ? "true" : "false");
     data.set("donatedAt", spentAt);
 
-    if (tipoAporte === "financial") {
-      const amt = parseFloat(montoOriginal);
-      if (isNaN(amt) || amt <= 0) {
-        setError("El monto debe ser mayor que cero.");
-        setEstado("idle");
-        return;
-      }
-      data.set("amount", String(amt));
-      data.set("currency", moneda);
-      data.set("exchangeRate", rateInput);
-      if (refNum) data.set("referenceNumber", refNum);
-    } else {
-      // in_kind
-      if (!inKindDesc.trim()) {
-        setError("Indica la descripción del insumo.");
-        setEstado("idle");
-        return;
-      }
-      const qty = parseFloat(inKindQty);
-      if (isNaN(qty) || qty <= 0) {
-        setError("La cantidad debe ser mayor que cero.");
-        setEstado("idle");
-        return;
-      }
-      const items = [{ description: inKindDesc, quantity: qty, unit: inKindUnit }];
-      data.set("inKindItems", JSON.stringify(items));
+    const amt = parseFloat(montoOriginal);
+    if (isNaN(amt) || amt <= 0) {
+      setError("El monto debe ser mayor que cero.");
+      setEstado("idle");
+      return;
     }
+    data.set("amount", String(amt));
+    data.set("currency", moneda);
+    data.set("exchangeRate", rateInput);
+    if (refNum) data.set("referenceNumber", refNum);
 
     try {
       const res = await fetch(`${PUBLIC_API_BASE}/public/donaciones`, {
@@ -147,10 +167,8 @@ export function DonarForm() {
         setMontoOriginal("");
         setEquivalenteUsd("");
         setRefNum("");
-        setInKindDesc("");
-        setInKindQty("1");
-        setInKindUnit("unidades");
         setFileName("");
+        setImagePreviewUrl(null);
         return;
       }
       const body = await res.json().catch(() => ({}));
@@ -164,16 +182,16 @@ export function DonarForm() {
 
   if (estado === "ok") {
     return (
-      <div className="rounded-xl border border-success/30 bg-success-soft p-8 text-center">
+      <div className="rounded-xl border border-success/30 bg-success-soft p-8 text-center animate-in fade-in duration-300">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success text-white">
           <IconCheck size={24} />
         </div>
         <h3 className="mt-4 font-serif text-2xl font-semibold text-ink">¡Gracias de corazón!</h3>
-        <p className="mt-2 text-ink-muted">
+        <p className="mt-2 text-ink-muted text-sm">
           Tu donación quedó registrada y la verificaremos pronto. Una vez confirmada,
           aparecerá en la transparencia pública.
         </p>
-        <Button className="mt-6" variant="secondary" onClick={() => setEstado("idle")}>
+        <Button className="mt-6 font-semibold" variant="secondary" onClick={() => setEstado("idle")}>
           Declarar otra donación
         </Button>
       </div>
@@ -183,20 +201,7 @@ export function DonarForm() {
   return (
     <form onSubmit={onSubmit} className="grid gap-5">
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Tipo de Aporte" htmlFor="tipo" required>
-          <Select
-            id="tipo"
-            name="type"
-            value={tipoAporte}
-            onChange={(e) => setTipoAporte(e.target.value as any)}
-            required
-          >
-            <option value="financial">Monetario (Financiero)</option>
-            <option value="in_kind">En especie (Insumos)</option>
-          </Select>
-        </Field>
-
-        <Field label="Fecha" htmlFor="fecha" required>
+        <Field label="Fecha de transferencia" htmlFor="fecha" required>
           <Input
             id="fecha"
             name="donatedAt"
@@ -206,20 +211,8 @@ export function DonarForm() {
             required
           />
         </Field>
-      </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="# Referencia (Opcional)" htmlFor="ref">
-          <Input
-            id="ref"
-            name="referenceNumber"
-            value={refNum}
-            onChange={(e) => setRefNum(e.target.value)}
-            placeholder="Ej: 981247"
-          />
-        </Field>
-
-        <Field label="¿Cómo donaste?" htmlFor="metodo">
+        <Field label="Medio de pago utilizado" htmlFor="metodo" required>
           <Select id="metodo" name="method" required onChange={(e) => handleMetodoChange(e.target.value)}>
             {metodos.map((m) => (
               <option key={m.id} value={m.label}>
@@ -229,120 +222,103 @@ export function DonarForm() {
             {metodos.length === 0 && (
               <>
                 <option value="Pago Móvil">Pago Móvil</option>
-                <option value="Transferencia">Transferencia</option>
+                <option value="Transferencia Bancaria">Transferencia Bancaria</option>
                 <option value="Efectivo">Efectivo</option>
-                <option value="Otro">Otro</option>
+                <option value="Zelle">Zelle</option>
               </>
             )}
           </Select>
         </Field>
       </div>
 
-      {tipoAporte === "financial" ? (
-        <>
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Monto Original" htmlFor="monto" required>
-              <div className="relative">
-                <span className="absolute left-3 top-2.5 text-ink-subtle text-sm font-semibold select-none">
-                  {moneda === "USD" ? "$" : "Bs."}
-                </span>
-                <Input
-                  id="monto"
-                  type="number"
-                  step="any"
-                  inputMode="decimal"
-                  value={montoOriginal}
-                  onChange={(e) => handleMontoChange(e.target.value)}
-                  placeholder="0.00"
-                  className="pl-10"
-                  required
-                />
-              </div>
-            </Field>
-
-            <Field label="Tasa BCV del día (VES/USD)" htmlFor="rate" required>
-              <div className="flex gap-2 items-center">
-                <Input
-                  id="rate"
-                  type="number"
-                  step="any"
-                  inputMode="decimal"
-                  value={rateInput}
-                  onChange={(e) => handleRateChange(e.target.value)}
-                  placeholder="36.00"
-                  className="flex-1"
-                  required
-                />
-                {rateInput !== defaultRate && (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => handleRateChange(defaultRate)}
-                    className="shrink-0 font-semibold"
-                  >
-                    Restaurar ({defaultRate})
-                  </Button>
-                )}
-              </div>
-            </Field>
-          </div>
-
-          {/* Banner para Equivalente USD */}
-          <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-brand/20 rounded-2xl p-5 flex flex-col justify-center items-center text-center shadow-inner relative overflow-hidden my-4">
-            <span className="text-[10px] font-bold text-brand uppercase tracking-widest">
-              Equivalente Contable en USD
-            </span>
-            <span className="text-3xl font-black text-brand font-mono mt-1.5">
-              $ {equivalenteUsd || "0.00"}
-            </span>
-            <span className="text-[10px] text-ink-subtle mt-1">
-              Calculado automáticamente en base a la tasa oficial del Banco Central de Venezuela.
-            </span>
-          </div>
-        </>
-      ) : (
-        <>
-          <Field label="Descripción de Insumo" htmlFor="ik-desc" required>
-            <Input
-              id="ik-desc"
-              value={inKindDesc}
-              onChange={(e) => setInKindDesc(e.target.value)}
-              placeholder="Ej: Frazadas, Alimentos"
-              required
-            />
-          </Field>
-
-          <div className="grid grid-cols-2 gap-5">
-            <Field label="Cantidad" htmlFor="ik-qty" required>
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field label="Monto de la donación" htmlFor="monto" required>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <span className="absolute left-3 top-2.5 text-ink-subtle text-sm font-semibold select-none">
+                {moneda === "USD" ? "$" : "Bs."}
+              </span>
               <Input
-                id="ik-qty"
+                id="monto"
                 type="number"
                 step="any"
-                value={inKindQty}
-                onChange={(e) => setInKindQty(e.target.value)}
+                inputMode="decimal"
+                value={montoOriginal}
+                onChange={(e) => handleMontoChange(e.target.value)}
+                placeholder="0.00"
+                className="pl-9"
                 required
               />
-            </Field>
-
-            <Field label="Unidad" htmlFor="ik-unit" required>
-              <Input
-                id="ik-unit"
-                value={inKindUnit}
-                onChange={(e) => setInKindUnit(e.target.value)}
-                placeholder="Ej: unidades, kg"
-                required
-              />
-            </Field>
+            </div>
+            <Select
+              id="moneda-select"
+              value={moneda}
+              onChange={(e) => handleMonedaChange(e.target.value as any)}
+              className="w-24 shrink-0 font-bold"
+            >
+              <option value="USD">USD</option>
+              <option value="VES">VES</option>
+            </Select>
           </div>
-        </>
+        </Field>
+
+        <Field label="Número de referencia" htmlFor="ref" help="Opcional. Código del comprobante">
+          <Input
+            id="ref"
+            name="referenceNumber"
+            value={refNum}
+            onChange={(e) => setRefNum(e.target.value)}
+            placeholder="Ej: 981247"
+          />
+        </Field>
+      </div>
+
+      {moneda === "VES" && (
+        <div className="grid gap-5 sm:grid-cols-2 animate-in fade-in duration-200">
+          <Field label="Tasa BCV utilizada (VES/USD)" htmlFor="rate" required>
+            <div className="flex gap-2 items-center">
+              <Input
+                id="rate"
+                type="number"
+                step="any"
+                inputMode="decimal"
+                value={rateInput}
+                onChange={(e) => handleRateChange(e.target.value)}
+                placeholder="36.00"
+                className="flex-1"
+                required
+              />
+              {rateInput !== defaultRate && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleRateChange(defaultRate)}
+                  className="shrink-0 font-semibold text-xs"
+                >
+                  Restaurar ({defaultRate})
+                </Button>
+              )}
+            </div>
+          </Field>
+
+          {/* Banner de Equivalente en dólares */}
+          <div className="flex flex-col justify-center bg-brand-soft/40 border border-brand/10 rounded-xl px-4 py-2.5">
+            <span className="text-[10px] font-bold text-brand uppercase tracking-wider">
+              Equivalente contable
+            </span>
+            <span className="text-xl font-black text-brand font-mono mt-0.5">
+              $ {equivalenteUsd || "0.00"} USD
+            </span>
+          </div>
+        </div>
       )}
 
       {/* Identidad pública */}
-      <fieldset className="rounded-lg border border-border bg-surface/30 p-5">
-        <legend className="px-2 text-xs font-semibold uppercase tracking-wider text-ink-muted">¿Cómo quieres aparecer?</legend>
+      <fieldset className="rounded-xl border border-border bg-surface-sunken/15 p-5">
+        <legend className="px-2 text-xs font-bold uppercase tracking-wider text-ink-muted">Visibilidad de tu aporte</legend>
         <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-center">
-          <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-ink">
+          <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-ink">
             <input
               type="radio"
               name="modo"
@@ -350,9 +326,9 @@ export function DonarForm() {
               onChange={() => setAnonimo(false)}
               className="h-4 w-4 rounded-full border-border text-brand focus:ring-brand accent-[color:rgb(var(--color-brand))]"
             />
-            Con mi nombre público
+            Mostrar mi nombre públicamente
           </label>
-          <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-ink">
+          <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-ink">
             <input
               type="radio"
               name="modo"
@@ -360,45 +336,39 @@ export function DonarForm() {
               onChange={() => setAnonimo(true)}
               className="h-4 w-4 rounded-full border-border text-brand focus:ring-brand accent-[color:rgb(var(--color-brand))]"
             />
-            Como Anónimo
+            Donar como Anónimo
           </label>
         </div>
         {!anonimo && (
-          <div className="mt-5 border-t border-border/40 pt-4">
-            <Field label="Tu nombre" htmlFor="nombre" help="Aparecerá junto a tu aporte en la lista de transparencia.">
-              <Input id="nombre" name="donorName" placeholder="Ej. María García" />
+          <div className="mt-4 border-t border-border/40 pt-4 animate-in slide-in-from-top-1.5 duration-200">
+            <Field label="Nombre del donante" htmlFor="nombre" help="Aparecerá en el portal de transparencia.">
+              <Input id="nombre" name="donorName" placeholder="Ej. María García" required={!anonimo} />
             </Field>
           </div>
         )}
       </fieldset>
 
       <Field
-        label="Contacto (privado)"
+        label="Contacto para validación (Privado)"
         htmlFor="contacto"
-        help="Solo para confirmarte. NUNCA se muestra públicamente."
+        required
+        help="Teléfono o correo. Únicamente para coordinar y verificar tu aporte. Nunca se publica."
       >
-        <Input id="contacto" name="donorContact" placeholder="Teléfono o correo" />
+        <Input id="contacto" name="donorContact" placeholder="Ej. whatsapp +584121234567 o correo@ejemplo.com" required />
       </Field>
 
-      <Field label="Mensaje (opcional)" htmlFor="mensaje" help="Se muestra públicamente.">
-        <Textarea id="mensaje" name="message" maxLength={280} placeholder="Un mensaje de aliento..." />
+      <Field label="Mensaje de aliento (Opcional)" htmlFor="mensaje" help="Se mostrará públicamente junto a tu donación.">
+        <Textarea id="mensaje" name="message" maxLength={280} placeholder="Escribe un mensaje de apoyo..." />
       </Field>
 
-      {/* Comprobante */}
+      {/* Comprobante / Capture con vista previa */}
       <div className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium text-ink">Comprobante de transferencia (opcional)</span>
+        <span className="text-sm font-semibold text-ink">Comprobante de transferencia (Opcional)</span>
         <p className="text-xs text-ink-subtle leading-normal">
-          Una foto del comprobante acelera la verificación. NUNCA se mostrará de forma pública.
+          Subir el capture acelera la verificación de tu donación.
         </p>
-        <label
-          htmlFor="proof"
-          className="mt-1 flex flex-col items-center justify-center gap-2 cursor-pointer rounded-lg border-2 border-dashed border-border-strong bg-background p-6 text-center text-ink-muted hover:bg-surface hover:border-brand/35 hover:text-brand transition-all duration-200 shadow-sm"
-        >
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-sunken text-ink-muted group-hover:text-brand transition-colors">
-            <IconCamera size={20} />
-          </span>
-          <span className="text-sm font-semibold">{fileName || "Haz clic para tomar foto o subir archivo"}</span>
-          <span className="text-[11px] text-ink-subtle">Formatos de imagen o PDF de hasta 8MB</span>
+
+        <div className="relative group">
           <input
             id="proof"
             name="proof"
@@ -406,18 +376,53 @@ export function DonarForm() {
             accept="image/*,application/pdf"
             capture="environment"
             className="sr-only"
-            onChange={(e) => setFileName(e.target.files?.[0]?.name ?? "")}
+            onChange={handleFileChange}
+            ref={fileInputRef}
           />
-        </label>
+
+          <label
+            htmlFor="proof"
+            className="mt-1 flex flex-col items-center justify-center gap-2 cursor-pointer rounded-xl border border-dashed border-border-strong bg-background p-6 text-center text-ink-muted hover:bg-surface hover:border-brand/35 hover:text-brand transition-all duration-200 shadow-sm"
+          >
+            {imagePreviewUrl ? (
+              <div className="relative flex flex-col items-center gap-2">
+                <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-border shadow-sm bg-surface">
+                  <img
+                    src={imagePreviewUrl}
+                    alt="Vista previa del comprobante"
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    onClick={handleRemoveFile}
+                    type="button"
+                    className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-white shadow-md hover:bg-danger/90 transition-colors"
+                    title="Eliminar comprobante"
+                  >
+                    <span className="text-xs font-bold leading-none">×</span>
+                  </button>
+                </div>
+                <span className="text-xs font-bold text-brand truncate max-w-xs">{fileName}</span>
+              </div>
+            ) : (
+              <>
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-sunken text-ink-muted group-hover:bg-brand-soft group-hover:text-brand transition-colors">
+                  <IconCamera size={18} />
+                </span>
+                <span className="text-sm font-semibold">{fileName || "Seleccionar capture o PDF"}</span>
+                <span className="text-[10px] text-ink-subtle">Formatos de imagen o PDF de hasta 8MB</span>
+              </>
+            )}
+          </label>
+        </div>
       </div>
 
-      {estado === "error" && (
-        <p role="alert" className="rounded-md bg-danger-soft px-4 py-3 text-sm text-danger">
+      {error && (
+        <p role="alert" className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger font-semibold">
           {error}
         </p>
       )}
 
-      <Button type="submit" size="lg" disabled={estado === "enviando"} fullWidth>
+      <Button type="submit" size="lg" disabled={estado === "enviando"} fullWidth className="font-bold py-3.5">
         {estado === "enviando" ? "Enviando..." : "Declarar mi donación"}
       </Button>
     </form>

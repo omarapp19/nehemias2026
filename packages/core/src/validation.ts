@@ -97,6 +97,7 @@ export const expenseBaseSchema = z.object({
   supplier: z.string().max(120).optional(),
   invoiceNumber: z.string().max(60).optional(),
   spentAt: z.coerce.date().optional(),
+  exchangeRate: z.coerce.number().positive().optional(),
   createsStock: zBool(false),
   // Si alimenta inventario:
   stockSupplyName: z.string().max(120).optional(),

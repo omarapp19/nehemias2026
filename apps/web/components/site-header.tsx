@@ -5,7 +5,7 @@ import { Logo } from "./brand";
 const NAV = [
   { href: "/transparencia", label: "Transparencia" },
   { href: "/necesidades", label: "Necesidades" },
-  { href: "/entregas", label: "Entregas" },
+  { href: "/galeria", label: "Galería" },
 ];
 
 export function SiteHeader() {

@@ -47,6 +47,7 @@ export interface PublicDonation {
   donorDisplay: string; // nombre o "Anónimo" — jamás el contacto
   message: string | null;
   donatedAt: string;
+  proofUrl: string | null;
 }
 
 /** Nombre a mostrar respetando el anonimato de punta a punta. */
@@ -55,7 +56,7 @@ export function donorDisplay(d: Pick<DonationRow, "isAnonymous" | "donorName">):
   return d.donorName?.trim() || "Donante";
 }
 
-/** Mapea una donación a su forma PÚBLICA (omite contacto y comprobante). */
+/** Mapea una donación a su forma PÚBLICA (omite contacto). */
 export function toPublicDonation(d: DonationRow): PublicDonation {
   return {
     id: d.id,
@@ -68,6 +69,7 @@ export function toPublicDonation(d: DonationRow): PublicDonation {
     donorDisplay: donorDisplay(d),
     message: d.message,
     donatedAt: iso(d.donatedAt),
+    proofUrl: d.proofUrl,
   };
 }
 
@@ -109,6 +111,7 @@ export interface ExpenseRow {
   invoiceNumber?: string | null;
   createsStock: boolean;
   spentAt: Date | string;
+  exchangeRate?: DecimalLike | null;
 }
 
 export interface PublicExpense {
@@ -121,6 +124,7 @@ export interface PublicExpense {
   invoiceUrl: string | null; // sí pública
   invoiceNumber?: string | null;
   spentAt: string;
+  exchangeRate: number | null;
 }
 
 export function toPublicExpense(e: ExpenseRow): PublicExpense {
@@ -134,6 +138,7 @@ export function toPublicExpense(e: ExpenseRow): PublicExpense {
     invoiceUrl: e.invoiceUrl,
     invoiceNumber: e.invoiceNumber,
     spentAt: iso(e.spentAt),
+    exchangeRate: money(e.exchangeRate),
   };
 }
 

@@ -7,10 +7,12 @@ import {
   expenseUpdateSchema,
   supplySchema,
   supplyUpdateSchema,
-  frenteSchema,
-  deliverySchema,
   paymentInfoSchema,
 } from "@nehemias/core";
+import { prisma } from "@nehemias/db";
+import fs from "node:fs";
+import path from "node:path";
+import { resolveStoredPath } from "../uploads/storage.js";
 import { asyncHandler, ApiError } from "../http.js";
 import { requireAdmin } from "../auth/middleware.js";
 import { upload } from "../uploads/middleware.js";
@@ -29,8 +31,7 @@ import {
   updateSupply,
   deleteSupply,
 } from "../services/inventory.js";
-import { listFrentes, createFrente, updateFrente, deleteFrente } from "../services/frentes.js";
-import { createDelivery, listPublicDeliveries, deleteDelivery } from "../services/deliveries.js";
+
 import {
   listAllPaymentInfo,
   createPaymentInfo,
@@ -181,67 +182,62 @@ adminRouter.delete(
   }),
 );
 
-// ---------- FRENTES ----------
+
+// ---------- GALERÍA ----------
 adminRouter.get(
-  "/frentes",
-  asyncHandler(async (_req, res) => res.json({ frentes: await listFrentes() })),
-);
-
-adminRouter.post(
-  "/frentes",
-  asyncHandler(async (req, res) => {
-    const input = frenteSchema.parse(req.body);
-    res.status(201).json({ frente: await createFrente(input) });
-  }),
-);
-
-adminRouter.put(
-  "/frentes/:id",
-  asyncHandler(async (req, res) => {
-    const input = frenteSchema.parse(req.body);
-    res.json({ frente: await updateFrente(req.params.id, input) });
-  }),
-);
-
-adminRouter.delete(
-  "/frentes/:id",
-  asyncHandler(async (req, res) => {
-    await deleteFrente(req.params.id);
-    res.json({ ok: true });
-  }),
-);
-
-// ---------- ENTREGAS ----------
-adminRouter.get(
-  "/entregas",
-  asyncHandler(async (_req, res) => res.json({ entregas: await listPublicDeliveries(200) })),
-);
-
-adminRouter.post(
-  "/entregas",
-  upload.array("photos", 12),
-  asyncHandler(async (req, res) => {
-    const input = deliverySchema.parse({
-      ...req.body,
-      items: parseMaybeJson(req.body.items) ?? [],
+  "/galeria",
+  asyncHandler(async (_req, res) => {
+    const fotos = await prisma.galleryPhoto.findMany({
+      orderBy: { createdAt: "desc" },
     });
+    res.json({ fotos });
+  }),
+);
+
+adminRouter.post(
+  "/galeria",
+  upload.array("photos", 24),
+  asyncHandler(async (req, res) => {
     const files = (req.files as Express.Multer.File[] | undefined) ?? [];
-    const photoUrls: string[] = [];
+    const created = [];
     for (const f of files) {
-      photoUrls.push(await processAndStore("deliveries", f));
+      const url = await processAndStore("gallery", f);
+      const title = f.originalname
+        .replace(/\.[^/.]+$/, "")
+        .replace(/^#/, "")
+        .trim();
+      const photo = await prisma.galleryPhoto.create({
+        data: {
+          url,
+          title: title || null,
+        },
+      });
+      created.push(photo);
     }
-    const entrega = await createDelivery(input, adminId(req), photoUrls);
-    res.status(201).json({ entrega });
+    res.status(201).json({ fotos: created });
   }),
 );
 
 adminRouter.delete(
-  "/entregas/:id",
+  "/galeria/:id",
   asyncHandler(async (req, res) => {
-    await deleteDelivery(req.params.id);
+    const photo = await prisma.galleryPhoto.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!photo) throw new ApiError(404, "Foto no encontrada.");
+
+    const absPath = resolveStoredPath("gallery", path.basename(photo.url));
+    if (absPath && fs.existsSync(absPath)) {
+      fs.unlinkSync(absPath);
+    }
+
+    await prisma.galleryPhoto.delete({
+      where: { id: req.params.id },
+    });
     res.json({ ok: true });
   }),
 );
+
 
 // ---------- CAPTACIÓN ----------
 adminRouter.get(

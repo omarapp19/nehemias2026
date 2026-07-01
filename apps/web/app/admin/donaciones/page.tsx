@@ -34,6 +34,62 @@ import { fileUrl } from "@/lib/config";
 
 type Tab = "pending" | "verified" | "rejected";
 
+function useAuthenticatedUrl(url: string | null) {
+  const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!url) {
+      setResolvedUrl(null);
+      return;
+    }
+
+    if (url.includes("drive.google.com") || !url.includes("/files/proofs/")) {
+      setResolvedUrl(url);
+      return;
+    }
+
+    let active = true;
+    let objectUrl: string | null = null;
+
+    async function loadSecureFile(fileUrl: string) {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(fileUrl, { credentials: "include" });
+        if (!res.ok) {
+          throw new Error(`Error: ${res.status}`);
+        }
+        const blob = await res.blob();
+        if (active) {
+          objectUrl = URL.createObjectURL(blob);
+          setResolvedUrl(objectUrl);
+        }
+      } catch (err: any) {
+        if (active) {
+          setError(err.message || "Error al cargar el comprobante.");
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadSecureFile(url);
+
+    return () => {
+      active = false;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [url]);
+
+  return { url: resolvedUrl, loading, error };
+}
+
 export default function AdminDonacionesPage() {
   const [tab, setTab] = useState<Tab>("pending");
   const [items, setItems] = useState<AdminDonation[]>([]);
@@ -45,6 +101,7 @@ export default function AdminDonacionesPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [modalUrl, setModalUrl] = useState<string | null>(null);
   const [modalLabel, setModalLabel] = useState<string>("");
+  const { url: secureModalUrl, loading: secureLoading, error: secureError } = useAuthenticatedUrl(modalUrl);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -345,15 +402,22 @@ export default function AdminDonacionesPage() {
 
             {/* Contenido del Modal */}
             <div className="flex-1 overflow-auto bg-muted/10 p-4 flex items-center justify-center min-h-[300px]">
-              {modalUrl.toLowerCase().endsWith(".pdf") ? (
+              {secureLoading ? (
+                <div className="text-sm font-semibold text-ink-subtle animate-pulse">Cargando comprobante...</div>
+              ) : secureError ? (
+                <div className="text-sm font-semibold text-danger bg-danger-soft/30 border border-danger/10 p-4 rounded-xl">{secureError}</div>
+              ) : modalUrl.toLowerCase().endsWith(".pdf") || modalUrl.includes("drive.google.com") ? (
                 <iframe
-                  src={modalUrl}
+                  src={modalUrl.includes("drive.google.com") ? (() => {
+                    const match = modalUrl.match(/\/d\/([a-zA-Z0-9-_]+)/) || modalUrl.match(/[?&]id=([a-zA-Z0-9-_]+)/);
+                    return match ? `https://drive.google.com/file/d/${match[1]}/preview` : modalUrl;
+                  })() : secureModalUrl || ""}
                   title="Comprobante PDF"
                   className="w-full h-[60vh] border-0 rounded-md shadow-sm bg-background"
                 />
               ) : (
                 <img
-                  src={modalUrl}
+                  src={secureModalUrl || ""}
                   alt="Comprobante"
                   className="max-h-[60vh] max-w-full object-contain rounded-md shadow-md border border-border/50 bg-background"
                 />

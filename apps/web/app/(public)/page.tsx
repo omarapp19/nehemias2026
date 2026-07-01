@@ -3,8 +3,8 @@ import { buttonClasses, SectionHeader, IconArrowRight, IconShield } from "@nehem
 import { getHome, type HomeSnapshot } from "@/lib/api";
 import { BalancePanel } from "@/components/balance";
 import { InsumoCard } from "@/components/cards";
-import { DeliveryGallery } from "@/components/delivery-gallery";
 import { RecentDonations, RecentExpenses } from "@/components/recent-transactions";
+import { GalleryView } from "@/components/gallery-view";
 
 export const dynamic = "force-dynamic";
 
@@ -142,24 +142,24 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* ── Entregas ── */}
-        {data.ultimasEntregas.length > 0 && (
-          <section>
+        {/* ── Galería del Trabajo ── */}
+        {data.ultimasFotos.length > 0 && (
+          <section className="border-t border-border pt-10">
             <SectionHeader
-              eyebrow="La ayuda, en el terreno"
-              title="Entregas recientes"
-              description="Cada jornada queda registrada con fotos y el frente al que llegó."
+              eyebrow="El trabajo en el terreno"
+              title="Galería de actividades"
+              description="Registros fotográficos de las jornadas de distribución y apoyo."
               action={
                 <Link
-                  href="/entregas"
+                  href="/galeria"
                   className="inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:text-brand-strong"
                 >
-                  Ver bitácora <IconArrowRight size={16} />
+                  Ver galería completa <IconArrowRight size={16} />
                 </Link>
               }
             />
             <div className="mt-6">
-              <DeliveryGallery entregas={data.ultimasEntregas} />
+              <GalleryView photos={data.ultimasFotos} />
             </div>
           </section>
         )}

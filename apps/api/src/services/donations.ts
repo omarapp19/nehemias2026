@@ -179,7 +179,7 @@ export async function listPublicVerifiedDonations(limit?: number) {
 export function getVerifiedFinancialForBalance() {
   return prisma.donation.findMany({
     where: { status: "verified", type: "financial" },
-    select: { amount: true, currency: true },
+    select: { amount: true, currency: true, exchangeRate: true },
   });
 }
 
