@@ -9,6 +9,7 @@ import { FRENTE_TIPO_LABEL } from "@/lib/labels";
 export default function AdminFrentesPage() {
   const [items, setItems] = useState<PublicFrente[]>([]);
   const [editId, setEditId] = useState<string | null>(null);
+  const [formKey, setFormKey] = useState(0);
 
   function cargar() {
     apiFrentes()
@@ -25,8 +26,10 @@ export default function AdminFrentesPage() {
       </div>
 
       <FrenteForm
+        key={formKey}
         onDone={() => {
           setEditId(null);
+          setFormKey((k) => k + 1);
           cargar();
         }}
       />

@@ -1,5 +1,6 @@
 import { prisma, Prisma } from "@nehemias/db";
 import { toPublicExpense, type ExpenseInput } from "@nehemias/core";
+import { ApiError } from "../http.js";
 import { applyStockIn } from "./inventory.js";
 
 /** Registra una compra/egreso. Si alimenta inventario, suma stock (origen: comprado). */
@@ -51,4 +52,36 @@ export async function listPublicExpenses(limit?: number) {
 
 export function getExpensesForBalance() {
   return prisma.expense.findMany({ select: { amount: true, currency: true } });
+}
+
+/** Actualiza campos editables de un egreso. */
+export async function updateExpense(
+  id: string,
+  input: Partial<ExpenseInput>,
+  invoiceUrl?: string | null,
+) {
+  const expense = await prisma.expense.findUnique({ where: { id } });
+  if (!expense) throw new ApiError(404, "Egreso no encontrado.");
+
+  const updated = await prisma.expense.update({
+    where: { id },
+    data: {
+      ...(input.description !== undefined && { description: input.description }),
+      ...(input.amount !== undefined && { amount: new Prisma.Decimal(input.amount) }),
+      ...(input.currency !== undefined && { currency: input.currency }),
+      ...(input.category !== undefined && { category: input.category ?? null }),
+      ...(input.supplier !== undefined && { supplier: input.supplier ?? null }),
+      ...(input.invoiceNumber !== undefined && { invoiceNumber: input.invoiceNumber ?? null }),
+      ...(input.spentAt !== undefined && { spentAt: input.spentAt }),
+      ...(invoiceUrl !== undefined && { invoiceUrl: invoiceUrl ?? expense.invoiceUrl }),
+    },
+  });
+  return toPublicExpense(updated);
+}
+
+/** Elimina un egreso permanentemente. */
+export async function deleteExpense(id: string) {
+  const expense = await prisma.expense.findUnique({ where: { id } });
+  if (!expense) throw new ApiError(404, "Egreso no encontrado.");
+  await prisma.expense.delete({ where: { id } });
 }

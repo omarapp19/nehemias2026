@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Button,
@@ -13,9 +13,11 @@ import {
   IconReceipt,
   IconUpload,
   IconX,
+  IconEdit,
+  IconTrash,
 } from "@nehemias/ui";
 import type { PublicExpense } from "@nehemias/core";
-import { apiEgresos, apiCrearEgreso, apiGet } from "@/lib/admin-api";
+import { apiEgresos, apiCrearEgreso, apiActualizarEgreso, apiEliminarEgreso, apiGet } from "@/lib/admin-api";
 import { fileUrl } from "@/lib/config";
 
 export default function AdminEgresosPage() {
@@ -28,6 +30,9 @@ export default function AdminEgresosPage() {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState(1);
+  const [editando, setEditando] = useState<PublicExpense | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -61,6 +66,17 @@ export default function AdminEgresosPage() {
     apiEgresos()
       .then((r) => setItems(r.egresos))
       .catch(() => setItems([]));
+  }
+
+  async function eliminar(id: string) {
+    setBusyId(id);
+    try {
+      await apiEliminarEgreso(id);
+      setConfirmDelete(null);
+      cargar();
+    } finally {
+      setBusyId(null);
+    }
   }
 
   useEffect(() => {
@@ -190,7 +206,50 @@ export default function AdminEgresosPage() {
         </Button>
       </div>
 
+      {/* Modal de creación */}
       {mounted && mostrarForm && createPortal(
+        <div className="fixed inset-0 z-50 flex justify-center items-start overflow-y-auto bg-black/60 backdrop-blur-sm p-4 sm:p-6 md:p-8">
+          <div className="relative max-w-2xl w-full bg-white rounded-2xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-5 border-b border-border/60 bg-surface-sunken/30">
+              <h3 className="font-serif text-lg font-bold text-ink leading-tight">Registrar una compra (Egreso)</h3>
+              <button onClick={() => setMostrarForm(false)} className="p-1.5 rounded-full text-ink-muted hover:bg-surface-sunken hover:text-ink transition-colors cursor-pointer" aria-label="Cerrar">
+                <IconX size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
+              <EgresoForm onDone={() => { setMostrarForm(false); cargar(); }} onCancel={() => setMostrarForm(false)} />
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Modal de edición */}
+      {mounted && editando && createPortal(
+        <div className="fixed inset-0 z-50 flex justify-center items-start overflow-y-auto bg-black/60 backdrop-blur-sm p-4 sm:p-6 md:p-8">
+          <div className="relative max-w-2xl w-full bg-white rounded-2xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-5 border-b border-border/60 bg-surface-sunken/30">
+              <div>
+                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">Editando</span>
+                <h3 className="font-serif text-lg font-bold text-ink leading-tight mt-1">Modificar egreso</h3>
+              </div>
+              <button onClick={() => setEditando(null)} className="p-1.5 rounded-full text-ink-muted hover:bg-surface-sunken hover:text-ink transition-colors cursor-pointer" aria-label="Cerrar">
+                <IconX size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
+              <EgresoForm
+                key={`edit-${editando.id}`}
+                initialData={editando}
+                onDone={() => { setEditando(null); cargar(); }}
+                onCancel={() => setEditando(null)}
+              />
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
         <div className="fixed inset-0 z-50 flex justify-center items-start overflow-y-auto bg-black/60 backdrop-blur-sm p-4 sm:p-6 md:p-8">
           <div className="relative max-w-2xl w-full bg-white rounded-2xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto animate-in zoom-in-95 duration-200">
             {/* Cabecera del Modal */}
@@ -377,36 +436,53 @@ export default function AdminEgresosPage() {
 
         <div className="space-y-4">
           {items.map((e) => (
-            <Card key={e.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-white border border-border/80 hover:-translate-y-0.5 hover:shadow-md transition-all duration-300 gap-4">
-              <div className="space-y-1.5 flex-1 min-w-0">
-                <div className="flex items-center gap-2.5">
-                  <p className="font-bold text-ink text-base truncate">
-                    {e.description}
-                  </p>
-                  {e.invoiceNumber && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 border border-border/60 text-ink-subtle font-mono font-semibold">
-                      Factura #{e.invoiceNumber}
-                    </span>
-                  )}
+            <Card key={e.id} className="flex flex-col p-5 bg-white border border-border/80 hover:-translate-y-0.5 hover:shadow-md transition-all duration-300 gap-3">
+              {/* Confirmación de eliminación inline */}
+              {confirmDelete === e.id ? (
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-danger-soft/20 border border-danger/20 rounded-xl p-4">
+                  <div>
+                    <p className="text-sm font-bold text-danger">¿Eliminar este egreso?</p>
+                    <p className="text-xs text-ink-muted mt-0.5">Esta acción no se puede deshacer.</p>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <Button size="sm" variant="secondary" onClick={() => setConfirmDelete(null)} disabled={busyId === e.id}>Cancelar</Button>
+                    <Button size="sm" variant="danger" onClick={() => eliminar(e.id)} disabled={busyId === e.id}>
+                      {busyId === e.id ? "Eliminando..." : "Sí, eliminar"}
+                    </Button>
+                  </div>
                 </div>
-                <p className="text-xs text-ink-subtle">
-                  Registrado el {formatDate(e.spentAt)}
-                </p>
-              </div>
-              <div className="flex items-center justify-between sm:justify-end gap-5 shrink-0">
-                <Money amount={e.amount} currency={e.currency} className="font-mono text-lg font-black text-ink" />
-                {fileUrl(e.invoiceUrl) && (
-                  <button
-                    onClick={() => {
-                      setModalUrl(fileUrl(e.invoiceUrl));
-                      setModalLabel(`Factura: ${e.description}`);
-                    }}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-brand hover:text-brand-strong cursor-pointer bg-brand-soft/10 border border-brand/20 px-3 py-1.5 rounded-lg shadow-sm transition-all"
-                  >
-                    <IconReceipt size={14} /> Ver Factura
-                  </button>
-                )}
-              </div>
+              ) : (
+                <div className="flex sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-2.5">
+                      <p className="font-bold text-ink text-base truncate">{e.description}</p>
+                      {e.invoiceNumber && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 border border-border/60 text-ink-subtle font-mono font-semibold">
+                          Factura #{e.invoiceNumber}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-ink-subtle">Registrado el {formatDate(e.spentAt)}</p>
+                  </div>
+                  <div className="flex items-center justify-end gap-3 shrink-0 flex-wrap">
+                    <Money amount={e.amount} currency={e.currency} className="font-mono text-lg font-black text-ink" />
+                    {fileUrl(e.invoiceUrl) && (
+                      <button
+                        onClick={() => { setModalUrl(fileUrl(e.invoiceUrl)); setModalLabel(`Factura: ${e.description}`); }}
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-brand hover:text-brand-strong cursor-pointer bg-brand-soft/10 border border-brand/20 px-3 py-1.5 rounded-lg shadow-sm transition-all"
+                      >
+                        <IconReceipt size={14} /> Ver Factura
+                      </button>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={() => setEditando(e)} disabled={busyId === e.id}>
+                      <IconEdit size={14} className="mr-1" /> Editar
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(e.id)} disabled={busyId === e.id} className="text-danger hover:bg-danger-soft/20">
+                      <IconTrash size={14} className="mr-1" /> Eliminar
+                    </Button>
+                  </div>
+                </div>
+              )}
             </Card>
           ))}
           {items.length === 0 && (

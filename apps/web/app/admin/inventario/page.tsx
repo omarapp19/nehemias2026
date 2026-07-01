@@ -25,6 +25,7 @@ interface SupplyRow {
 export default function AdminInventarioPage() {
   const [items, setItems] = useState<SupplyRow[]>([]);
   const [estado, setEstado] = useState<"idle" | "enviando">("idle");
+  const [formKey, setFormKey] = useState(0);
 
   function cargar() {
     apiInsumos()
@@ -40,7 +41,7 @@ export default function AdminInventarioPage() {
     const data = Object.fromEntries(new FormData(form));
     try {
       await apiCrearInsumo(data);
-      form.reset();
+      setFormKey((k) => k + 1);
       cargar();
     } finally {
       setEstado("idle");
@@ -58,7 +59,7 @@ export default function AdminInventarioPage() {
 
       <Card className="p-5">
         <h2 className="mb-4 font-serif text-lg font-semibold text-ink">Agregar insumo</h2>
-        <form onSubmit={crear} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <form key={formKey} onSubmit={crear} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <Field label="Nombre" htmlFor="name" required>
             <Input id="name" name="name" required />
           </Field>

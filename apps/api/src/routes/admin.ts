@@ -17,8 +17,10 @@ import {
   adminCreateDonation,
   reviewDonation,
   listAdminDonations,
+  updateDonation,
+  deleteDonation,
 } from "../services/donations.js";
-import { createExpense, listPublicExpenses } from "../services/expenses.js";
+import { createExpense, listPublicExpenses, updateExpense, deleteExpense } from "../services/expenses.js";
 import {
   listSupplies,
   createSupply,
@@ -85,6 +87,29 @@ adminRouter.post(
   }),
 );
 
+adminRouter.put(
+  "/donaciones/:id",
+  upload.single("proof"),
+  asyncHandler(async (req, res) => {
+    const input = adminCreateDonationSchema.partial().parse({
+      ...req.body,
+      inKindItems: parseMaybeJson(req.body.inKindItems),
+    });
+    let proofUrl: string | undefined;
+    if (req.file) proofUrl = await processAndStore("proofs", req.file);
+    const donacion = await updateDonation(req.params.id, input, proofUrl);
+    res.json({ donacion });
+  }),
+);
+
+adminRouter.delete(
+  "/donaciones/:id",
+  asyncHandler(async (req, res) => {
+    await deleteDonation(req.params.id);
+    res.json({ ok: true });
+  }),
+);
+
 // ---------- EGRESOS ----------
 adminRouter.get(
   "/egresos",
@@ -100,6 +125,26 @@ adminRouter.post(
     if (req.file) invoiceUrl = await processAndStore("invoices", req.file);
     const egreso = await createExpense(input, adminId(req), invoiceUrl);
     res.status(201).json({ egreso });
+  }),
+);
+
+adminRouter.put(
+  "/egresos/:id",
+  upload.single("invoice"),
+  asyncHandler(async (req, res) => {
+    const input = expenseSchema.partial().parse(req.body);
+    let invoiceUrl: string | undefined;
+    if (req.file) invoiceUrl = await processAndStore("invoices", req.file);
+    const egreso = await updateExpense(req.params.id, input, invoiceUrl);
+    res.json({ egreso });
+  }),
+);
+
+adminRouter.delete(
+  "/egresos/:id",
+  asyncHandler(async (req, res) => {
+    await deleteExpense(req.params.id);
+    res.json({ ok: true });
   }),
 );
 

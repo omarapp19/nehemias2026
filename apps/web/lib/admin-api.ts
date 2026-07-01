@@ -53,10 +53,14 @@ export const apiDonaciones = (status?: string) =>
 export const apiRevisarDonacion = (id: string, action: "verify" | "reject") =>
   apiJson(`/admin/donaciones/${id}/revisar`, "POST", { action });
 export const apiCrearDonacion = (form: FormData) => apiForm("/admin/donaciones", form);
+export const apiActualizarDonacion = (id: string, form: FormData) => apiForm(`/admin/donaciones/${id}`, form, "PUT");
+export const apiEliminarDonacion = (id: string) => apiJson(`/admin/donaciones/${id}`, "DELETE", {});
 
 // — Egresos —
 export const apiEgresos = () => apiGet("/admin/egresos");
 export const apiCrearEgreso = (form: FormData) => apiForm("/admin/egresos", form);
+export const apiActualizarEgreso = (id: string, form: FormData) => apiForm(`/admin/egresos/${id}`, form, "PUT");
+export const apiEliminarEgreso = (id: string) => apiJson(`/admin/egresos/${id}`, "DELETE", {});
 
 // — Inventario —
 export const apiInsumos = () => apiGet("/admin/insumos");
