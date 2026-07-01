@@ -34,15 +34,15 @@ export default async function HomePage() {
   return (
     <>
       {/* ── Héroe ── */}
-      <section className="relative overflow-hidden border-b border-border/50 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(11,68,45,0.08),rgba(255,255,255,0))]">
+      <section className="relative overflow-hidden border-b border-border/50 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(17,24,39,0.05),rgba(255,255,255,0))]">
         <div className="mx-auto max-w-6xl px-5 py-16 sm:py-24">
           <div className="grid gap-12 lg:grid-cols-12 lg:items-center">
             {/* Columna Texto */}
             <div className="lg:col-span-7 flex flex-col items-start text-left">
-              <div className="flex items-center gap-2.5 px-0.5 py-1 text-xs font-bold text-brand tracking-widest uppercase">
+              <div className="flex items-center gap-2.5 px-0.5 py-1 text-xs font-bold text-ink-muted tracking-widest uppercase">
                 <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-brand"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-ink opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-ink"></span>
                 </span>
                 Transparencia en vivo
               </div>
@@ -55,7 +55,7 @@ export default async function HomePage() {
                 cada insumo, respaldado con facturas y fotos.
               </p>
               <div className="mt-10 flex flex-wrap gap-4 w-full sm:w-auto">
-                <Link href="/donar" className={buttonClasses("primary", "lg", "shadow-[0_4px_14px_rgba(11,68,45,0.15)] hover:shadow-[0_6px_20px_rgba(11,68,45,0.2)] w-full sm:w-auto text-center")}>
+                <Link href="/donar" className={buttonClasses("primary", "lg", "shadow-[0_4px_14px_rgba(17,24,39,0.12)] hover:shadow-[0_6px_20px_rgba(17,24,39,0.18)] w-full sm:w-auto text-center")}>
                   Quiero apoyar
                 </Link>
                 <Link href="/transparencia" className={buttonClasses("secondary", "lg", "w-full sm:w-auto text-center")}>
@@ -66,7 +66,7 @@ export default async function HomePage() {
 
             {/* Columna Imagen */}
             <div className="lg:col-span-5 relative flex justify-center">
-              <div className="relative w-full max-w-md lg:max-w-none aspect-[3/2] sm:aspect-[1.4] lg:aspect-[1.1] overflow-hidden rounded-2xl border border-border shadow-xl hover:shadow-2xl transition-all duration-300 group">
+              <div className="relative w-full max-w-md lg:max-w-none aspect-[3/2] sm:aspect-[1.4] lg:aspect-[1.1] overflow-hidden rounded-2xl border border-border/80 bg-white/40 backdrop-blur shadow-xl hover:shadow-2xl transition-all duration-300 group">
                 <img
                   src="/humanitarian_aid_illustration.jpg"
                   alt="Ilustración de voluntariado y apoyo humanitario"
@@ -75,7 +75,7 @@ export default async function HomePage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent pointer-events-none" />
               </div>
               {/* Elementos decorativos de fondo */}
-              <div className="absolute -bottom-4 -left-4 -z-10 h-48 w-48 rounded-2xl bg-brand-soft/50 border border-brand/5" />
+              <div className="absolute -bottom-4 -left-4 -z-10 h-48 w-48 rounded-2xl bg-white/30 backdrop-blur-md border border-white/50 shadow-md" />
               <div className="absolute -top-4 -right-4 -z-10 h-32 w-32 rounded-full bg-surface-sunken/40" />
             </div>
           </div>

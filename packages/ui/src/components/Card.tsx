@@ -11,7 +11,7 @@ export function Card({
   return (
     <As
       className={cn(
-        "rounded-lg border border-border bg-surface shadow-sm hover:shadow-md transition-all duration-300 ease-in-out",
+        "rounded-xl border border-white/40 bg-white/50 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.03)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.06)] hover:border-black/5 transition-all duration-300 ease-in-out",
         className,
       )}
       {...props}
