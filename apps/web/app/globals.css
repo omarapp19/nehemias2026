@@ -35,6 +35,25 @@
   .tnum {
     font-variant-numeric: tabular-nums;
   }
+
+  /* Scrollbar estético para contenedores con scroll interno */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 5px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #D1D5DB;
+    border-radius: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #0B442D;
+  }
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #D1D5DB transparent;
+  }
 }
 
 /* Respeta la preferencia de menos movimiento. */

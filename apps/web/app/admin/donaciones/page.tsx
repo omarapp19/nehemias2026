@@ -13,13 +13,17 @@ import {
   formatDate,
   IconCheck,
   IconX,
+  IconCamera,
 } from "@nehemias/ui";
 import type { AdminDonation } from "@nehemias/core";
 import {
   apiDonaciones,
   apiRevisarDonacion,
   apiCrearDonacion,
+  apiCaptacion,
+  apiGet,
 } from "@/lib/admin-api";
+import { BrandMark } from "@/components/brand";
 import { metodoLabel } from "@/lib/labels";
 import { fileUrl } from "@/lib/config";
 
@@ -35,7 +39,7 @@ export default function AdminDonacionesPage() {
   const [modalLabel, setModalLabel] = useState<string>("");
 
   useEffect(() => {
-    if (modalUrl) {
+    if (modalUrl || mostrarForm) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
@@ -68,113 +72,195 @@ export default function AdminDonacionesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-serif text-3xl font-semibold text-ink">Donaciones</h1>
-          <p className="mt-1 text-ink-muted">
-            Aprueba o rechaza. Solo las verificadas suman al balance.
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl border border-border/80 shadow-sm">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-brand animate-pulse"></span>
+            <span className="text-xs font-bold text-brand uppercase tracking-wider">Gestión de Fondos</span>
+          </div>
+          <h1 className="font-serif text-3xl font-extrabold tracking-tight text-ink">Donaciones Recibidas</h1>
+          <p className="text-sm text-ink-muted leading-relaxed">
+            Verifica y aprueba las declaraciones del público o registra aportes directos.
           </p>
         </div>
-        <Button variant="secondary" onClick={() => setMostrarForm((v) => !v)}>
-          {mostrarForm ? "Cerrar" : "Registrar donación"}
+        <Button
+          variant={mostrarForm ? "secondary" : "primary"}
+          onClick={() => setMostrarForm((v) => !v)}
+          className="shrink-0 shadow-sm transition-all duration-300 hover:scale-[1.02]"
+        >
+          {mostrarForm ? "Ocultar Formulario" : "Registrar Donación"}
         </Button>
       </div>
 
-      {mostrarForm && <ManualForm onDone={() => cargar(tab)} />}
+      {mostrarForm && (
+        <div className="fixed inset-0 z-50 flex justify-center items-start overflow-y-auto bg-black/60 backdrop-blur-sm p-4 sm:p-6 md:p-8">
+          <div className="relative max-w-2xl w-full bg-white rounded-2xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto animate-in zoom-in-95 duration-200">
+            {/* Cabecera del Modal */}
+            <div className="flex items-center justify-between p-5 border-b border-border/60 bg-surface-sunken/30">
+              <div>
+                <h3 className="font-serif text-lg font-bold text-ink leading-tight">Registrar una donación recibida</h3>
+              </div>
+              <button
+                onClick={() => setMostrarForm(false)}
+                className="p-1.5 rounded-full text-ink-muted hover:bg-surface-sunken hover:text-ink transition-colors cursor-pointer"
+                aria-label="Cerrar"
+              >
+                <IconX size={20} />
+              </button>
+            </div>
 
-      {/* Pestañas */}
-      <div className="inline-flex rounded-lg border border-border bg-surface p-1">
-        {(
-          [
-            ["pending", "Por verificar"],
-            ["verified", "Verificadas"],
-            ["rejected", "Rechazadas"],
-          ] as [Tab, string][]
-        ).map(([t, label]) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-              tab === t ? "bg-background text-ink shadow-sm" : "text-ink-muted"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+            {/* Contenido del Modal (scrollable) */}
+            <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
+              <ManualForm onDone={() => { setMostrarForm(false); cargar(tab); }} onCancel={() => setMostrarForm(false)} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pestañas y estadísticas resumidas */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-4">
+        <div className="inline-flex rounded-xl bg-surface-sunken p-1 border border-border/50">
+          {(
+            [
+              ["pending", "Por verificar"],
+              ["verified", "Verificadas"],
+              ["rejected", "Rechazadas"],
+            ] as [Tab, string][]
+          ).map(([t, label]) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`rounded-lg px-4 py-2 text-xs md:text-sm font-semibold transition-all duration-200 cursor-pointer ${
+                tab === t
+                  ? "bg-white text-ink shadow-sm ring-1 ring-black/5"
+                  : "text-ink-subtle hover:text-ink"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="text-xs text-ink-subtle font-medium">
+          Mostrando <span className="text-ink font-bold">{items.length}</span> registros en esta sección
+        </div>
       </div>
 
       {cargando ? (
-        <p className="text-ink-muted">Cargando...</p>
+        <div className="space-y-4">
+          {[1, 2, 3].map((n) => (
+            <div key={n} className="h-28 w-full bg-surface-sunken rounded-2xl animate-pulse border border-border/50" />
+          ))}
+        </div>
       ) : items.length === 0 ? (
-        <p className="rounded-lg border border-border bg-surface p-8 text-center text-ink-muted">
-          No hay donaciones {tab === "pending" ? "por verificar" : "aquí"}.
-        </p>
+        <div className="rounded-2xl border border-dashed border-border-strong bg-white p-12 text-center text-ink-muted">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-surface-sunken text-ink-subtle mb-4">
+            <IconX size={24} />
+          </div>
+          <h3 className="font-serif text-lg font-bold text-ink">No se encontraron registros</h3>
+          <p className="text-sm text-ink-subtle mt-1">
+            No hay donaciones {tab === "pending" ? "pendientes de aprobación" : "en este listado"}.
+          </p>
+        </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {items.map((d) => (
-            <Card key={d.id} className="p-5">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
+            <Card key={d.id} className="p-6 bg-white hover:-translate-y-0.5 hover:shadow-md transition-all duration-300 border border-border/80">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-2 flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
                     <BadgeDonacion estado={d.status} />
                     {d.declaredByPublic && (
-                      <span className="text-xs text-ink-subtle">declarada por el público</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider bg-brand-soft/20 text-brand px-2 py-0.5 rounded-full">
+                        declarada por el público
+                      </span>
                     )}
                   </div>
-                  <p className="text-lg font-semibold text-ink">
-                    {d.type === "financial" && d.amount !== null ? (
-                      <Money amount={d.amount} currency={d.currency} />
-                    ) : (
-                      "Donación en especie"
+                  
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-2xl font-black tracking-tight text-ink font-mono">
+                      {d.type === "financial" && d.amount !== null ? (
+                        <Money amount={d.amount} currency={d.currency} />
+                      ) : (
+                        "Donación en especie"
+                      )}
+                    </p>
+                    {d.type === "financial" && d.currency === "VES" && d.exchangeRate && (
+                      <span className="text-xs text-brand font-bold bg-brand-soft/10 px-2 py-0.5 rounded border border-brand/10 font-mono">
+                        Tasa: {Number(d.exchangeRate).toFixed(2)} VES/USD
+                      </span>
                     )}
-                  </p>
-                  <p className="text-sm text-ink-muted">
-                    {d.donorDisplay}
-                    {d.type === "financial" && d.method ? ` · ${metodoLabel(d.method)}` : ""} ·{" "}
-                    {formatDate(d.donatedAt)}
-                  </p>
-                  {d.message && <p className="text-sm italic text-ink-muted">“{d.message}”</p>}
+                  </div>
 
-                  {/* Datos privados, solo admin */}
+                  <div className="text-sm text-ink-muted flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="font-bold text-ink">{d.donorDisplay}</span>
+                    <span className="text-ink-subtle/40">•</span>
+                    {d.type === "financial" && d.method && (
+                      <>
+                        <span className="bg-surface-sunken px-2.5 py-0.5 rounded text-xs font-semibold text-ink-muted border border-border/50">{metodoLabel(d.method)}</span>
+                        <span className="text-ink-subtle/40">•</span>
+                      </>
+                    )}
+                    {d.referenceNumber && (
+                      <>
+                        <span className="font-mono text-xs text-ink-subtle bg-slate-100 px-2 py-0.5 rounded">Ref: #{d.referenceNumber}</span>
+                        <span className="text-ink-subtle/40">•</span>
+                      </>
+                    )}
+                    <span className="text-xs">{formatDate(d.donatedAt)}</span>
+                  </div>
+
+                  {d.message && (
+                    <div className="mt-2 text-sm italic text-ink-muted bg-surface-sunken/40 border-l-2 border-border p-3.5 rounded-r-lg">
+                      “{d.message}”
+                    </div>
+                  )}
+
+                  {/* Datos privados, solo visibles para el administrador */}
                   {(d.donorContact || d.proofUrl) && (
-                    <div className="mt-2 rounded-md bg-surface px-3 py-2 text-sm">
+                    <div className="mt-4 rounded-xl bg-surface-sunken/60 p-4 text-sm border border-border/40 grid sm:grid-cols-2 gap-3">
                       {d.donorContact && (
-                        <p className="text-ink-muted">
-                          Contacto (privado): <span className="text-ink">{d.donorContact}</span>
-                        </p>
+                        <div>
+                          <span className="text-xs font-semibold text-ink-subtle block uppercase tracking-wider">Contacto Donante</span>
+                          <span className="text-ink font-medium mt-0.5 block">{d.donorContact}</span>
+                        </div>
                       )}
                       {d.proofUrl && (
-                        <button
-                          onClick={() => {
-                            setModalUrl(fileUrl(d.proofUrl));
-                            setModalLabel(`Comprobante de ${d.donorDisplay}`);
-                          }}
-                          className="font-medium text-brand hover:text-brand-strong cursor-pointer bg-transparent border-0 p-0 text-left"
-                        >
-                          Ver comprobante
-                        </button>
+                        <div className="flex items-end">
+                          <button
+                            onClick={() => {
+                              setModalUrl(fileUrl(d.proofUrl));
+                              setModalLabel(`Comprobante de ${d.donorDisplay}`);
+                            }}
+                            className="inline-flex items-center gap-1.5 font-bold text-xs text-brand hover:text-brand-strong cursor-pointer bg-white border border-brand/20 hover:border-brand px-3 py-1.5 rounded-lg shadow-sm transition-all"
+                          >
+                            <IconCamera size={14} />
+                            Ver comprobante adjunto
+                          </button>
+                        </div>
                       )}
                     </div>
                   )}
                 </div>
 
                 {d.status === "pending" && (
-                  <div className="flex gap-2">
+                  <div className="flex md:flex-col lg:flex-row gap-2.5 shrink-0 self-stretch md:self-center justify-end">
                     <Button
                       size="sm"
                       onClick={() => revisar(d.id, "verify")}
                       disabled={busyId === d.id}
+                      className="flex-1 shadow-sm"
                     >
-                      <IconCheck size={16} /> Aprobar
+                      <IconCheck size={14} className="mr-1.5" /> Aprobar
                     </Button>
                     <Button
                       size="sm"
                       variant="danger"
                       onClick={() => revisar(d.id, "reject")}
                       disabled={busyId === d.id}
+                      className="flex-1 shadow-sm"
                     >
-                      <IconX size={16} /> Rechazar
+                      <IconX size={14} className="mr-1.5" /> Rechazar
                     </Button>
                   </div>
                 )}
@@ -186,8 +272,8 @@ export default function AdminDonacionesPage() {
 
       {/* Modal para visualizar el comprobante */}
       {modalUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 sm:p-6 transition-opacity animate-in fade-in duration-200">
-          <div className="relative max-w-3xl w-full bg-surface rounded-xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex justify-center items-start overflow-y-auto bg-black/75 backdrop-blur-sm p-4 sm:p-6 transition-opacity animate-in fade-in duration-200">
+          <div className="relative max-w-3xl w-full bg-surface rounded-xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto animate-in zoom-in-95 duration-200">
             {/* Cabecera del Modal */}
             <div className="flex items-center justify-between p-4 border-b border-border bg-surface-sunken/30">
               <div>
@@ -243,10 +329,84 @@ export default function AdminDonacionesPage() {
   );
 }
 
-function ManualForm({ onDone }: { onDone: () => void }) {
+function ManualForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
   const [anon, setAnon] = useState(false);
   const [estado, setEstado] = useState<"idle" | "enviando">("idle");
   const [error, setError] = useState("");
+  const [metodos, setMetodos] = useState<{ id: string; label: string; isActive: boolean }[]>([]);
+
+  // Form states matching user request
+  const [tipoAporte, setTipoAporte] = useState<"financial" | "in_kind">("financial");
+  const [montoOriginal, setMontoOriginal] = useState("");
+  const [moneda, setMoneda] = useState<"USD" | "VES">("USD");
+  const [rateInput, setRateInput] = useState("36.00");
+  const [defaultRate, setDefaultRate] = useState("36.00");
+  const [equivalenteUsd, setEquivalenteUsd] = useState("");
+  const [refNum, setRefNum] = useState("");
+  const [spentAt, setSpentAt] = useState<string>(() => {
+    const d = new Date();
+    const offset = d.getTimezoneOffset();
+    const localDate = new Date(d.getTime() - offset * 60 * 1000);
+    return localDate.toISOString().split("T")[0];
+  });
+
+  // For in_kind
+  const [inKindDesc, setInKindDesc] = useState("");
+  const [inKindQty, setInKindQty] = useState("1");
+  const [inKindUnit, setInKindUnit] = useState("unidades");
+
+  useEffect(() => {
+    // Load payment methods
+    apiCaptacion()
+      .then((r) => {
+        if (r.captacion) {
+          setMetodos(r.captacion.filter((m: any) => m.isActive));
+        }
+      })
+      .catch(() => {});
+
+    // Load default rate
+    apiGet("/public/balances")
+      .then((r) => {
+        if (r.exchangeRate) {
+          const rateStr = String(r.exchangeRate);
+          setRateInput(rateStr);
+          setDefaultRate(rateStr);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const updateEquivalente = (monto: string, curr: "USD" | "VES", rate: string) => {
+    const numMonto = parseFloat(monto);
+    const numRate = parseFloat(rate);
+    if (!isNaN(numMonto)) {
+      if (curr === "USD") {
+        setEquivalenteUsd(numMonto.toFixed(2));
+      } else if (!isNaN(numRate) && numRate > 0) {
+        setEquivalenteUsd((numMonto / numRate).toFixed(2));
+      } else {
+        setEquivalenteUsd("");
+      }
+    } else {
+      setEquivalenteUsd("");
+    }
+  };
+
+  const handleMontoChange = (val: string) => {
+    setMontoOriginal(val);
+    updateEquivalente(val, moneda, rateInput);
+  };
+
+  const handleMonedaChange = (val: "USD" | "VES") => {
+    setMoneda(val);
+    updateEquivalente(montoOriginal, val, rateInput);
+  };
+
+  const handleRateChange = (val: string) => {
+    setRateInput(val);
+    updateEquivalente(montoOriginal, moneda, val);
+  };
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -254,11 +414,47 @@ function ManualForm({ onDone }: { onDone: () => void }) {
     setError("");
     const form = e.currentTarget;
     const data = new FormData(form);
-    data.set("type", "financial");
+    data.set("type", tipoAporte);
     data.set("isAnonymous", anon ? "true" : "false");
+    data.set("donatedAt", spentAt);
+
+    if (tipoAporte === "financial") {
+      const amt = parseFloat(montoOriginal);
+      if (isNaN(amt) || amt <= 0) {
+        setError("El monto debe ser mayor que cero.");
+        setEstado("idle");
+        return;
+      }
+      data.set("amount", String(amt));
+      data.set("currency", moneda);
+      data.set("exchangeRate", rateInput);
+      if (refNum) data.set("referenceNumber", refNum);
+    } else {
+      // in_kind
+      if (!inKindDesc.trim()) {
+        setError("Indica la descripción del insumo.");
+        setEstado("idle");
+        return;
+      }
+      const qty = parseFloat(inKindQty);
+      if (isNaN(qty) || qty <= 0) {
+        setError("La cantidad debe ser mayor que cero.");
+        setEstado("idle");
+        return;
+      }
+      const items = [{ description: inKindDesc, quantity: qty, unit: inKindUnit }];
+      data.set("inKindItems", JSON.stringify(items));
+    }
+
     try {
       await apiCrearDonacion(data);
       form.reset();
+      setMontoOriginal("");
+      setEquivalenteUsd("");
+      setRefNum("");
+      setInKindDesc("");
+      setInKindQty("1");
+      setInKindUnit("unidades");
       setEstado("idle");
       onDone();
     } catch {
@@ -268,55 +464,238 @@ function ManualForm({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <Card className="p-5">
-      <h2 className="mb-4 font-serif text-lg font-semibold text-ink">
-        Registrar una donación recibida
-      </h2>
-      <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
-        <Field label="Monto" htmlFor="m-monto" required>
-          <Input id="m-monto" name="amount" inputMode="decimal" required />
-        </Field>
-        <Field label="Moneda" htmlFor="m-moneda">
-          <Select id="m-moneda" name="currency" defaultValue="USD">
-            <option value="USD">Dólares (USD)</option>
-            <option value="VES">Bolívares (Bs.)</option>
-          </Select>
-        </Field>
-        <Field label="Método" htmlFor="m-metodo">
-          <Select id="m-metodo" name="method" defaultValue="pago_movil">
-            <option value="pago_movil">Pago Móvil</option>
-            <option value="transfer">Transferencia</option>
-            <option value="cash">Efectivo</option>
-            <option value="other">Otro</option>
-          </Select>
-        </Field>
-        <Field label="Fecha" htmlFor="m-fecha">
-          <Input id="m-fecha" name="donatedAt" type="date" />
-        </Field>
-        {!anon && (
-          <Field label="Nombre del donante" htmlFor="m-nombre">
-            <Input id="m-nombre" name="donorName" placeholder="Nombre y apellido" />
+    <form onSubmit={onSubmit} className="space-y-6">
+      
+      {/* Sección 1: Datos de Control */}
+      <div className="space-y-4">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-brand/80 border-b border-border/60 pb-1.5">
+          1. Datos de Control y Método
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Tipo de Aporte" htmlFor="m-tipo" required>
+            <Select
+              id="m-tipo"
+              name="type"
+              value={tipoAporte}
+              onChange={(e) => setTipoAporte(e.target.value as any)}
+              required
+            >
+              <option value="financial">Monetario (Financiero)</option>
+              <option value="in_kind">En especie (Insumos)</option>
+            </Select>
           </Field>
-        )}
-        <Field label="Mensaje (opcional)" htmlFor="m-msg">
-          <Textarea id="m-msg" name="message" maxLength={280} />
-        </Field>
-        <label className="flex items-center gap-2 text-sm text-ink">
-          <input
-            type="checkbox"
-            checked={anon}
-            onChange={(e) => setAnon(e.target.checked)}
-            className="h-4 w-4 accent-[color:rgb(var(--color-brand))]"
-          />
-          Donante anónimo
-        </label>
-        {error && <p className="text-sm text-danger sm:col-span-2">{error}</p>}
-        <div className="sm:col-span-2">
-          <Button type="submit" disabled={estado === "enviando"}>
-            {estado === "enviando" ? "Guardando..." : "Guardar como verificada"}
-          </Button>
+
+          <Field label="Fecha de Recepción" htmlFor="m-fecha" required>
+            <Input
+              id="m-fecha"
+              name="donatedAt"
+              type="date"
+              value={spentAt}
+              onChange={(e) => setSpentAt(e.target.value)}
+              required
+            />
+          </Field>
+
+          <Field label="# Referencia (Opcional)" htmlFor="m-ref">
+            <Input
+              id="m-ref"
+              name="referenceNumber"
+              value={refNum}
+              onChange={(e) => setRefNum(e.target.value)}
+              placeholder="Ej: 981247"
+            />
+          </Field>
+
+          <Field label="Método de Pago / Recepción" htmlFor="m-metodo" required>
+            <Select id="m-metodo" name="method" required>
+              {metodos.map((m) => (
+                <option key={m.id} value={m.label}>
+                  {m.label}
+                </option>
+              ))}
+              {metodos.length === 0 && (
+                <>
+                  <option value="Pago Móvil">Pago Móvil</option>
+                  <option value="Transferencia">Transferencia</option>
+                  <option value="Efectivo">Efectivo</option>
+                  <option value="Otro">Otro</option>
+                </>
+              )}
+            </Select>
+          </Field>
         </div>
-      </form>
-    </Card>
+      </div>
+
+      {/* Sección 2: Valores Financieros o Detalles Físicos */}
+      <div className="space-y-4">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-brand/80 border-b border-border/60 pb-1.5">
+          2. Detalles del Aporte
+        </h3>
+        
+        {tipoAporte === "financial" ? (
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Monto Original" htmlFor="m-monto" required>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-ink-subtle text-sm font-semibold select-none">
+                    {moneda === "USD" ? "$" : "Bs."}
+                  </span>
+                  <Input
+                    id="m-monto"
+                    type="number"
+                    step="any"
+                    inputMode="decimal"
+                    value={montoOriginal}
+                    onChange={(e) => handleMontoChange(e.target.value)}
+                    placeholder="0.00"
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </Field>
+
+              <Field label="Moneda de Recepción" htmlFor="m-moneda" required>
+                <Select
+                  id="m-moneda"
+                  name="currency"
+                  value={moneda}
+                  onChange={(e) => handleMonedaChange(e.target.value as any)}
+                  required
+                >
+                  <option value="USD">Dólares (USD)</option>
+                  <option value="VES">Bolívares (Bs. / VES)</option>
+                </Select>
+              </Field>
+
+              <Field label="Tasa BCV de cambio (VES/USD)" htmlFor="m-rate" required className="sm:col-span-2">
+                <div className="flex gap-2 items-center">
+                  <Input
+                    id="m-rate"
+                    type="number"
+                    step="any"
+                    inputMode="decimal"
+                    value={rateInput}
+                    onChange={(e) => handleRateChange(e.target.value)}
+                    placeholder="36.00"
+                    className="flex-1"
+                    required
+                  />
+                  {rateInput !== defaultRate && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleRateChange(defaultRate)}
+                      className="shrink-0 font-semibold"
+                    >
+                      Restaurar ({defaultRate})
+                    </Button>
+                  )}
+                </div>
+              </Field>
+            </div>
+
+            {/* Carta destacada para Equivalente USD */}
+            <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-brand/20 rounded-2xl p-5 flex flex-col justify-center items-center text-center shadow-inner relative overflow-hidden">
+              <div className="absolute right-3 top-3 opacity-10">
+                <BrandMark size={48} />
+              </div>
+              <span className="text-[10px] font-bold text-brand uppercase tracking-widest">
+                Equivalente Contable Declarado
+              </span>
+              <span className="text-3xl font-black text-brand font-mono mt-1.5">
+                $ {equivalenteUsd || "0.00"}
+              </span>
+              <span className="text-[10px] text-ink-subtle mt-1">
+                Calculado en base a la tasa de cambio del Banco Central de Venezuela.
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Descripción del Insumo" htmlFor="m-ik-desc" required className="sm:col-span-2">
+              <Input
+                id="m-ik-desc"
+                value={inKindDesc}
+                onChange={(e) => setInKindDesc(e.target.value)}
+                placeholder="Ej: Frazadas térmicas, Harina de maíz"
+                required
+              />
+            </Field>
+
+            <Field label="Cantidad Donada" htmlFor="m-ik-qty" required>
+              <Input
+                id="m-ik-qty"
+                type="number"
+                step="any"
+                value={inKindQty}
+                onChange={(e) => setInKindQty(e.target.value)}
+                required
+              />
+            </Field>
+
+            <Field label="Unidad de Medida" htmlFor="m-ik-unit" required>
+              <Input
+                id="m-ik-unit"
+                value={inKindUnit}
+                onChange={(e) => setInKindUnit(e.target.value)}
+                placeholder="Ej: unidades, bultos, kg"
+                required
+              />
+            </Field>
+          </div>
+        )}
+      </div>
+
+      {/* Sección 3: Datos del Donante */}
+      <div className="space-y-4">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-brand/80 border-b border-border/60 pb-1.5">
+          3. Datos del Donante y Mensaje
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {!anon && (
+            <Field label="Nombre Completo del Donante" htmlFor="m-nombre" className="sm:col-span-2">
+              <Input id="m-nombre" name="donorName" placeholder="Ej: Juan Pérez o Empresa C.A." />
+            </Field>
+          )}
+
+          <Field label="Mensaje de Aliento (Opcional)" htmlFor="m-msg" className="sm:col-span-2">
+            <Textarea
+              id="m-msg"
+              name="message"
+              maxLength={280}
+              placeholder="Mensaje corto de agradecimiento o aliento para la comunidad..."
+            />
+          </Field>
+
+          <div className="sm:col-span-2 flex items-center gap-2 py-1">
+            <label className="inline-flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-ink select-none">
+              <input
+                type="checkbox"
+                checked={anon}
+                onChange={(e) => setAnon(e.target.checked)}
+                className="h-4.5 w-4.5 rounded border-border text-brand focus:ring-brand accent-[color:rgb(var(--color-brand))]"
+              />
+              Registrar como Aporte Anónimo
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <p role="alert" className="text-sm font-semibold text-danger bg-danger-soft/30 border border-danger/10 p-3 rounded-lg">
+          {error}
+        </p>
+      )}
+      
+      <div className="pt-2 border-t border-border/40 flex justify-end gap-3">
+        <Button type="button" variant="secondary" onClick={onCancel} disabled={estado === "enviando"}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={estado === "enviando"} className="shadow-md">
+          {estado === "enviando" ? "Registrando..." : "Guardar como Verificada"}
+        </Button>
+      </div>
+    </form>
   );
 }

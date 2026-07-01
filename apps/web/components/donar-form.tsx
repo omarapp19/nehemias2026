@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button, Field, Input, Select, Textarea, IconCheck, IconCamera } from "@nehemias/ui";
 import { PUBLIC_API_BASE } from "@/lib/config";
 
@@ -11,6 +11,80 @@ export function DonarForm() {
   const [anonimo, setAnonimo] = useState(false);
   const [error, setError] = useState<string>("");
   const [fileName, setFileName] = useState<string>("");
+  const [metodos, setMetodos] = useState<{ id: string; label: string; isActive: boolean }[]>([]);
+
+  // Form states matching user request
+  const [tipoAporte, setTipoAporte] = useState<"financial" | "in_kind">("financial");
+  const [montoOriginal, setMontoOriginal] = useState("");
+  const [moneda, setMoneda] = useState<"USD" | "VES">("USD");
+  const [rateInput, setRateInput] = useState("36.00");
+  const [defaultRate, setDefaultRate] = useState("36.00");
+  const [equivalenteUsd, setEquivalenteUsd] = useState("");
+  const [refNum, setRefNum] = useState("");
+  const [spentAt, setSpentAt] = useState<string>(() => {
+    const d = new Date();
+    const offset = d.getTimezoneOffset();
+    const localDate = new Date(d.getTime() - offset * 60 * 1000);
+    return localDate.toISOString().split("T")[0];
+  });
+
+  // For in_kind
+  const [inKindDesc, setInKindDesc] = useState("");
+  const [inKindQty, setInKindQty] = useState("1");
+  const [inKindUnit, setInKindUnit] = useState("unidades");
+
+  useEffect(() => {
+    fetch(`${PUBLIC_API_BASE}/public/captacion`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.captacion) {
+          setMetodos(data.captacion.filter((m: any) => m.isActive));
+        }
+      })
+      .catch(() => {});
+
+    fetch(`${PUBLIC_API_BASE}/public/balances`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.exchangeRate) {
+          const rateStr = String(data.exchangeRate);
+          setRateInput(rateStr);
+          setDefaultRate(rateStr);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const updateEquivalente = (monto: string, curr: "USD" | "VES", rate: string) => {
+    const numMonto = parseFloat(monto);
+    const numRate = parseFloat(rate);
+    if (!isNaN(numMonto)) {
+      if (curr === "USD") {
+        setEquivalenteUsd(numMonto.toFixed(2));
+      } else if (!isNaN(numRate) && numRate > 0) {
+        setEquivalenteUsd((numMonto / numRate).toFixed(2));
+      } else {
+        setEquivalenteUsd("");
+      }
+    } else {
+      setEquivalenteUsd("");
+    }
+  };
+
+  const handleMontoChange = (val: string) => {
+    setMontoOriginal(val);
+    updateEquivalente(val, moneda, rateInput);
+  };
+
+  const handleMonedaChange = (val: "USD" | "VES") => {
+    setMoneda(val);
+    updateEquivalente(montoOriginal, val, rateInput);
+  };
+
+  const handleRateChange = (val: string) => {
+    setRateInput(val);
+    updateEquivalente(montoOriginal, moneda, val);
+  };
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -19,8 +93,37 @@ export function DonarForm() {
 
     const form = e.currentTarget;
     const data = new FormData(form);
-    data.set("type", "financial");
+    data.set("type", tipoAporte);
     data.set("isAnonymous", anonimo ? "true" : "false");
+    data.set("donatedAt", spentAt);
+
+    if (tipoAporte === "financial") {
+      const amt = parseFloat(montoOriginal);
+      if (isNaN(amt) || amt <= 0) {
+        setError("El monto debe ser mayor que cero.");
+        setEstado("idle");
+        return;
+      }
+      data.set("amount", String(amt));
+      data.set("currency", moneda);
+      data.set("exchangeRate", rateInput);
+      if (refNum) data.set("referenceNumber", refNum);
+    } else {
+      // in_kind
+      if (!inKindDesc.trim()) {
+        setError("Indica la descripción del insumo.");
+        setEstado("idle");
+        return;
+      }
+      const qty = parseFloat(inKindQty);
+      if (isNaN(qty) || qty <= 0) {
+        setError("La cantidad debe ser mayor que cero.");
+        setEstado("idle");
+        return;
+      }
+      const items = [{ description: inKindDesc, quantity: qty, unit: inKindUnit }];
+      data.set("inKindItems", JSON.stringify(items));
+    }
 
     try {
       const res = await fetch(`${PUBLIC_API_BASE}/public/donaciones`, {
@@ -30,6 +133,12 @@ export function DonarForm() {
       if (res.status === 201) {
         setEstado("ok");
         form.reset();
+        setMontoOriginal("");
+        setEquivalenteUsd("");
+        setRefNum("");
+        setInKindDesc("");
+        setInKindQty("1");
+        setInKindUnit("unidades");
         setFileName("");
         return;
       }
@@ -63,30 +172,167 @@ export function DonarForm() {
   return (
     <form onSubmit={onSubmit} className="grid gap-5">
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Monto donado" htmlFor="monto" required help="Solo el número.">
-          <Input id="monto" name="amount" inputMode="decimal" placeholder="100.00" required />
-        </Field>
-        <Field label="Moneda" htmlFor="moneda" required>
-          <Select id="moneda" name="currency" defaultValue="USD" required>
-            <option value="USD">Dólares (USD)</option>
-            <option value="VES">Bolívares (Bs.)</option>
+        <Field label="Tipo de Aporte" htmlFor="tipo" required>
+          <Select
+            id="tipo"
+            name="type"
+            value={tipoAporte}
+            onChange={(e) => setTipoAporte(e.target.value as any)}
+            required
+          >
+            <option value="financial">Monetario (Financiero)</option>
+            <option value="in_kind">En especie (Insumos)</option>
           </Select>
+        </Field>
+
+        <Field label="Fecha" htmlFor="fecha" required>
+          <Input
+            id="fecha"
+            name="donatedAt"
+            type="date"
+            value={spentAt}
+            onChange={(e) => setSpentAt(e.target.value)}
+            required
+          />
         </Field>
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
+        <Field label="# Referencia (Opcional)" htmlFor="ref">
+          <Input
+            id="ref"
+            name="referenceNumber"
+            value={refNum}
+            onChange={(e) => setRefNum(e.target.value)}
+            placeholder="Ej: 981247"
+          />
+        </Field>
+
         <Field label="¿Cómo donaste?" htmlFor="metodo">
-          <Select id="metodo" name="method" defaultValue="pago_movil">
-            <option value="pago_movil">Pago Móvil</option>
-            <option value="transfer">Transferencia</option>
-            <option value="cash">Efectivo</option>
-            <option value="other">Otro</option>
+          <Select id="metodo" name="method" required>
+            {metodos.map((m) => (
+              <option key={m.id} value={m.label}>
+                {m.label}
+              </option>
+            ))}
+            {metodos.length === 0 && (
+              <>
+                <option value="Pago Móvil">Pago Móvil</option>
+                <option value="Transferencia">Transferencia</option>
+                <option value="Efectivo">Efectivo</option>
+                <option value="Otro">Otro</option>
+              </>
+            )}
           </Select>
         </Field>
-        <Field label="Fecha" htmlFor="fecha">
-          <Input id="fecha" name="donatedAt" type="date" />
-        </Field>
       </div>
+
+      {tipoAporte === "financial" ? (
+        <>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field label="Monto Original" htmlFor="monto" required>
+              <Input
+                id="monto"
+                type="number"
+                step="any"
+                inputMode="decimal"
+                value={montoOriginal}
+                onChange={(e) => handleMontoChange(e.target.value)}
+                placeholder="0.00"
+                required
+              />
+            </Field>
+
+            <Field label="Moneda" htmlFor="moneda" required>
+              <Select
+                id="moneda"
+                name="currency"
+                value={moneda}
+                onChange={(e) => handleMonedaChange(e.target.value as any)}
+                required
+              >
+                <option value="USD">Dólares (USD)</option>
+                <option value="VES">Bolívares (Bs.)</option>
+              </Select>
+            </Field>
+          </div>
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field label="Tasa BCV del día (VES/USD)" htmlFor="rate" required>
+              <div className="flex gap-2 items-center">
+                <Input
+                  id="rate"
+                  type="number"
+                  step="any"
+                  inputMode="decimal"
+                  value={rateInput}
+                  onChange={(e) => handleRateChange(e.target.value)}
+                  placeholder="36.00"
+                  className="flex-1"
+                  required
+                />
+                {rateInput !== defaultRate && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleRateChange(defaultRate)}
+                    className="shrink-0"
+                  >
+                    Restaurar ({defaultRate})
+                  </Button>
+                )}
+              </div>
+            </Field>
+
+            <Field label="Equivalente USD" htmlFor="equiv">
+              <Input
+                id="equiv"
+                type="text"
+                value={equivalenteUsd ? `$ ${equivalenteUsd}` : ""}
+                readOnly
+                placeholder="$ 0.00"
+                className="bg-surface-sunken font-bold text-brand"
+              />
+            </Field>
+          </div>
+        </>
+      ) : (
+        <>
+          <Field label="Descripción de Insumo" htmlFor="ik-desc" required>
+            <Input
+              id="ik-desc"
+              value={inKindDesc}
+              onChange={(e) => setInKindDesc(e.target.value)}
+              placeholder="Ej: Frazadas, Alimentos"
+              required
+            />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-5">
+            <Field label="Cantidad" htmlFor="ik-qty" required>
+              <Input
+                id="ik-qty"
+                type="number"
+                step="any"
+                value={inKindQty}
+                onChange={(e) => setInKindQty(e.target.value)}
+                required
+              />
+            </Field>
+
+            <Field label="Unidad" htmlFor="ik-unit" required>
+              <Input
+                id="ik-unit"
+                value={inKindUnit}
+                onChange={(e) => setInKindUnit(e.target.value)}
+                placeholder="Ej: unidades, kg"
+                required
+              />
+            </Field>
+          </div>
+        </>
+      )}
 
       {/* Identidad pública */}
       <fieldset className="rounded-lg border border-border bg-surface/30 p-5">

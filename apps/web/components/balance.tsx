@@ -106,7 +106,6 @@ export function BalancePanel({
           value={activeBalance.invertido}
           max={Math.max(activeBalance.recaudado, activeBalance.invertido, 1)}
           tone="brand"
-          label={`${pct}% de fondos aplicados en las comunidades`}
         />
       </div>
 

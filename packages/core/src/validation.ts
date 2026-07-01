@@ -21,7 +21,7 @@ function zBool(def: boolean) {
 export const currencyEnum = z.enum(["USD", "VES"], {
   errorMap: () => ({ message: "Elige una moneda válida (USD o VES)." }),
 });
-export const donationMethodEnum = z.enum(["pago_movil", "transfer", "cash", "other"]);
+export const donationMethodEnum = z.string();
 export const donationTypeEnum = z.enum(["financial", "in_kind"]);
 export const frenteTypeEnum = z.enum(["comunidad", "refugio", "desplazados"]);
 
@@ -47,6 +47,8 @@ export const declareDonationSchema = z
     amount: z.coerce.number().positive("El monto debe ser mayor que cero.").optional(),
     currency: currencyEnum.default("USD"),
     method: donationMethodEnum.optional(),
+    referenceNumber: z.string().max(60).optional(),
+    exchangeRate: z.coerce.number().positive().optional(),
     donorName: z.string().max(120).optional(),
     isAnonymous: zBool(false),
     donorContact: z.string().max(160).optional(), // PRIVADO

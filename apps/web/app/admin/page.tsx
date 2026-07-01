@@ -29,20 +29,29 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="font-serif text-3xl font-extrabold tracking-tight text-ink">Panel de Control</h1>
-        <p className="mt-1 text-sm text-ink-muted">Esto es lo que requiere tu atención y supervisión hoy.</p>
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="bg-gradient-to-r from-emerald-950 to-slate-900 rounded-2xl p-6 md:p-8 text-white shadow-xl relative overflow-hidden">
+        {/* Decorative subtle background shape */}
+        <div className="absolute right-0 bottom-0 top-0 w-1/3 bg-gradient-to-l from-brand/10 to-transparent pointer-events-none rounded-r-2xl" />
+        <span className="text-xs font-bold uppercase tracking-wider text-brand-soft/90 bg-white/10 px-3 py-1 rounded-full backdrop-blur-sm">
+          Resumen General
+        </span>
+        <h1 className="font-serif text-3xl md:text-4xl font-extrabold tracking-tight mt-3">
+          Panel de Control
+        </h1>
+        <p className="mt-2 text-sm md:text-base text-emerald-100/70 max-w-xl">
+          Supervisa las donaciones entrantes, el inventario de suministros de ayuda humanitaria y la transparencia financiera del proyecto.
+        </p>
       </div>
 
       {/* Tarjetas de atención */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card className={`flex items-center justify-between p-5 border-l-4 transition-all duration-300 ${
-          pendientes && pendientes > 0 ? "border-l-warning bg-warning-soft/20 hover:border-l-warning-strong" : "border-l-border"
+      <div className="grid gap-6 sm:grid-cols-2">
+        <Card className={`flex items-center justify-between p-6 border-l-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
+          pendientes && pendientes > 0 ? "border-l-warning bg-warning-soft/10 hover:border-l-warning-strong" : "border-l-border bg-white"
         }`}>
-          <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-warning-soft text-warning border border-warning/10">
-              <IconClock size={20} />
+          <div className="flex items-center gap-4">
+            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-warning-soft text-warning border border-warning/15 shadow-sm">
+              <IconClock size={22} />
             </span>
             <Stat
               label="Donaciones por verificar"
@@ -55,12 +64,12 @@ export default function AdminDashboard() {
           </Link>
         </Card>
 
-        <Card className={`flex items-center justify-between p-5 border-l-4 transition-all duration-300 ${
-          urgentes.length > 0 ? "border-l-danger bg-danger-soft/20 hover:border-l-danger-strong" : "border-l-border"
+        <Card className={`flex items-center justify-between p-6 border-l-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
+          urgentes.length > 0 ? "border-l-danger bg-danger-soft/10 hover:border-l-danger-strong" : "border-l-border bg-white"
         }`}>
-          <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-danger-soft text-danger border border-danger/10">
-              <IconAlert size={20} />
+          <div className="flex items-center gap-4">
+            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-danger-soft text-danger border border-danger/15 shadow-sm">
+              <IconAlert size={22} />
             </span>
             <Stat
               label="Insumos urgentes"
@@ -75,46 +84,61 @@ export default function AdminDashboard() {
       </div>
 
       {/* Balance interno */}
-      <section>
-        <h2 className="mb-4 font-serif text-lg font-bold tracking-tight text-ink">Resumen Contable (Finanzas)</h2>
+      <section className="bg-white rounded-2xl border border-border/80 p-6 md:p-8 shadow-sm">
+        <h2 className="mb-6 font-serif text-xl font-bold tracking-tight text-ink flex items-center gap-2">
+          <span className="w-1.5 h-6 bg-brand rounded-full"></span>
+          Resumen Contable (Finanzas)
+        </h2>
         <BalancePanel balances={balances} exchangeRate={exchangeRate} />
       </section>
 
       {/* Acciones rápidas */}
       <section>
-        <h2 className="mb-4 font-serif text-lg font-bold tracking-tight text-ink">Acciones de campo rápidas</h2>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <h2 className="mb-6 font-serif text-xl font-bold tracking-tight text-ink flex items-center gap-2">
+          <span className="w-1.5 h-6 bg-brand rounded-full"></span>
+          Acciones de campo rápidas
+        </h2>
+        <div className="grid gap-6 sm:grid-cols-3">
           <Link
             href="/admin/egresos"
-            className="flex flex-col items-start p-5 rounded-lg border border-border bg-background hover:border-brand/40 hover:shadow-sm transition-all duration-300 group text-left"
+            className="flex flex-col items-start p-6 rounded-2xl border border-border/80 bg-white hover:border-brand/40 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 group text-left relative overflow-hidden"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-sunken text-ink-muted group-hover:bg-brand-soft group-hover:text-brand transition-colors mb-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-surface-sunken text-ink-muted group-hover:bg-brand-soft group-hover:text-brand transition-colors mb-4 border border-border/40 shadow-inner">
               <IconReceipt size={20} />
             </span>
-            <span className="font-bold text-sm text-ink group-hover:text-brand transition-colors">Registrar una compra</span>
-            <span className="text-xs text-ink-subtle mt-1">Registra gastos con facturas para actualizar el balance.</span>
+            <span className="font-bold text-sm text-ink group-hover:text-brand transition-colors flex items-center gap-1.5">
+              Registrar una compra
+              <IconArrowRight size={14} className="opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+            </span>
+            <span className="text-xs text-ink-subtle mt-2 leading-relaxed">Registra gastos con facturas para actualizar el balance de caja.</span>
           </Link>
           
           <Link
             href="/admin/entregas"
-            className="flex flex-col items-start p-5 rounded-lg border border-border bg-background hover:border-brand/40 hover:shadow-sm transition-all duration-300 group text-left"
+            className="flex flex-col items-start p-6 rounded-2xl border border-border/80 bg-white hover:border-brand/40 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 group text-left relative overflow-hidden"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-sunken text-ink-muted group-hover:bg-brand-soft group-hover:text-brand transition-colors mb-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-surface-sunken text-ink-muted group-hover:bg-brand-soft group-hover:text-brand transition-colors mb-4 border border-border/40 shadow-inner">
               <IconCamera size={20} />
             </span>
-            <span className="font-bold text-sm text-ink group-hover:text-brand transition-colors">Registrar una entrega</span>
-            <span className="text-xs text-ink-subtle mt-1">Registra entregas de insumos en los frentes de ayuda.</span>
+            <span className="font-bold text-sm text-ink group-hover:text-brand transition-colors flex items-center gap-1.5">
+              Registrar una entrega
+              <IconArrowRight size={14} className="opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+            </span>
+            <span className="text-xs text-ink-subtle mt-2 leading-relaxed">Registra entregas de insumos con evidencia fotográfica en los frentes de ayuda.</span>
           </Link>
 
           <Link
             href="/admin/donaciones"
-            className="flex flex-col items-start p-5 rounded-lg border border-border bg-background hover:border-brand/40 hover:shadow-sm transition-all duration-300 group text-left"
+            className="flex flex-col items-start p-6 rounded-2xl border border-border/80 bg-white hover:border-brand/40 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 group text-left relative overflow-hidden"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-sunken text-ink-muted group-hover:bg-brand-soft group-hover:text-brand transition-colors mb-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-surface-sunken text-ink-muted group-hover:bg-brand-soft group-hover:text-brand transition-colors mb-4 border border-border/40 shadow-inner">
               <IconHeart size={20} />
             </span>
-            <span className="font-bold text-sm text-ink group-hover:text-brand transition-colors">Registrar una donación</span>
-            <span className="text-xs text-ink-subtle mt-1">Declara o ingresa un aporte financiero o en especie.</span>
+            <span className="font-bold text-sm text-ink group-hover:text-brand transition-colors flex items-center gap-1.5">
+              Registrar una donación
+              <IconArrowRight size={14} className="opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+            </span>
+            <span className="text-xs text-ink-subtle mt-2 leading-relaxed">Declara o ingresa de forma manual un aporte financiero o de insumos en especie.</span>
           </Link>
         </div>
       </section>

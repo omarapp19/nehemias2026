@@ -23,6 +23,8 @@ export interface DonationRow {
   amount: DecimalLike;
   currency: Currency;
   method: string | null;
+  referenceNumber: string | null;
+  exchangeRate: DecimalLike | null;
   donorName: string | null;
   isAnonymous: boolean;
   donorContact: string | null; // PRIVADO
@@ -40,6 +42,8 @@ export interface PublicDonation {
   amount: number | null;
   currency: Currency;
   method: string | null;
+  referenceNumber: string | null;
+  exchangeRate: number | null;
   donorDisplay: string; // nombre o "Anónimo" — jamás el contacto
   message: string | null;
   donatedAt: string;
@@ -59,6 +63,8 @@ export function toPublicDonation(d: DonationRow): PublicDonation {
     amount: d.type === "financial" ? money(d.amount) : null,
     currency: d.currency,
     method: d.method,
+    referenceNumber: d.referenceNumber,
+    exchangeRate: money(d.exchangeRate),
     donorDisplay: donorDisplay(d),
     message: d.message,
     donatedAt: iso(d.donatedAt),

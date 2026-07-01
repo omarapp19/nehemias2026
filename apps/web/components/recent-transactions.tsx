@@ -1,21 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@nehemias/ui";
 import { TransaccionCard } from "@/components/cards";
 import { metodoLabel } from "@/lib/labels";
 import { fileUrl } from "@/lib/config";
 import type { PublicDonation, PublicExpense } from "@nehemias/core";
 
 export function RecentDonations({ donations, exchangeRate }: { donations: PublicDonation[]; exchangeRate: number }) {
-  const [expanded, setExpanded] = useState(false);
-
-  const displayed = expanded ? donations : donations.slice(0, 3);
-
   return (
     <div className="flex flex-col gap-3">
-      <div className="space-y-3">
-        {displayed.map((d) => (
+      <div className="space-y-3 max-h-[380px] overflow-y-auto custom-scrollbar pr-1.5">
+        {donations.map((d) => (
           <TransaccionCard
             key={d.id}
             direccion="ingreso"
@@ -28,30 +22,15 @@ export function RecentDonations({ donations, exchangeRate }: { donations: Public
           />
         ))}
       </div>
-      {donations.length > 3 && (
-        <div className="flex justify-center mt-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setExpanded(!expanded)}
-          >
-            {expanded ? "Mostrar menos" : "Desplegar más"}
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
 
 export function RecentExpenses({ expenses, exchangeRate }: { expenses: PublicExpense[]; exchangeRate: number }) {
-  const [expanded, setExpanded] = useState(false);
-
-  const displayed = expanded ? expenses : expenses.slice(0, 3);
-
   return (
     <div className="flex flex-col gap-3">
-      <div className="space-y-3">
-        {displayed.map((e) => (
+      <div className="space-y-3 max-h-[380px] overflow-y-auto custom-scrollbar pr-1.5">
+        {expenses.map((e) => (
           <TransaccionCard
             key={e.id}
             direccion="egreso"
@@ -65,17 +44,6 @@ export function RecentExpenses({ expenses, exchangeRate }: { expenses: PublicExp
           />
         ))}
       </div>
-      {expenses.length > 3 && (
-        <div className="flex justify-center mt-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setExpanded(!expanded)}
-          >
-            {expanded ? "Mostrar menos" : "Desplegar más"}
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

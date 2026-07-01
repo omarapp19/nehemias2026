@@ -48,12 +48,6 @@ enum DonationStatus {
   rejected
 }
 
-enum DonationMethod {
-  pago_movil
-  transfer
-  cash
-  other
-}
 
 model Donation {
   id     String         @id @default(uuid())
@@ -63,7 +57,9 @@ model Donation {
   // financiero
   amount   Decimal?        @db.Decimal(14, 2)
   currency Currency        @default(USD)
-  method   DonationMethod?
+  method   String?
+  referenceNumber String?
+  exchangeRate    Decimal? @db.Decimal(10, 4)
 
   // donante (parte privada: contacto; parte pública: nombre o "Anónimo")
   donorName    String?

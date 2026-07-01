@@ -25,6 +25,9 @@ export function SiteHeader() {
               {item.label}
             </Link>
           ))}
+          <Link href="/admin" className={buttonClasses("secondary", "sm")}>
+            Iniciar sesión
+          </Link>
           <Link href="/donar" className={buttonClasses("primary", "sm")}>
             Quiero ayudar
           </Link>
@@ -38,19 +41,25 @@ export function SiteHeader() {
             </svg>
             <span className="sr-only">Abrir menú</span>
           </summary>
-          <div className="absolute right-0 mt-2 w-56 rounded-lg border border-border bg-background p-2 shadow-lg">
+          <div className="absolute right-0 mt-2 w-56 rounded-lg border border-border bg-background p-2 shadow-lg flex flex-col gap-1">
             {NAV.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="block rounded-md px-3 py-2.5 text-base font-medium text-ink hover:bg-surface"
+                className="block rounded-md px-3 py-2 text-base font-medium text-ink hover:bg-surface"
               >
                 {item.label}
               </Link>
             ))}
             <Link
+              href="/admin"
+              className={buttonClasses("secondary", "md", "w-full text-center mt-1")}
+            >
+              Iniciar sesión
+            </Link>
+            <Link
               href="/donar"
-              className={buttonClasses("primary", "md", "mt-1 w-full")}
+              className={buttonClasses("primary", "md", "w-full text-center")}
             >
               Quiero ayudar
             </Link>

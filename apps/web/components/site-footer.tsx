@@ -32,6 +32,9 @@ export function SiteFooter() {
             <Link href="/donar" className="text-ink-muted hover:text-ink">
               Quiero ayudar
             </Link>
+            <Link href="/admin" className="text-ink-muted hover:text-ink font-semibold">
+              Panel Admin
+            </Link>
           </nav>
         </div>
 
