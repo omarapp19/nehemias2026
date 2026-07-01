@@ -42,7 +42,7 @@ export default function AdminFrentesPage() {
         <p className="mt-1 text-ink-muted">Comunidades, refugios y grupos de desplazados.</p>
       </div>
 
-      {error && (
+      {error && !confirmDeleteId && (
         <div className="bg-danger-soft/20 border border-danger/20 text-danger p-4 rounded-xl text-sm font-medium">
           {error}
         </div>
@@ -70,19 +70,26 @@ export default function AdminFrentesPage() {
               onCancel={() => setEditId(null)}
             />
           ) : confirmDeleteId === f.id ? (
-            <Card key={f.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-danger-soft/10 border border-danger/20 p-4">
-              <div>
-                <p className="text-sm font-bold text-danger">¿Eliminar el frente "{f.name}"?</p>
-                <p className="text-xs text-ink-muted mt-0.5">Esta acción no se puede deshacer.</p>
+            <Card key={f.id} className="flex flex-col gap-3 bg-danger-soft/10 border border-danger/20 p-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-bold text-danger">¿Eliminar el frente "{f.name}"?</p>
+                  <p className="text-xs text-ink-muted mt-0.5">Esta acción no se puede deshacer.</p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <Button size="sm" variant="secondary" onClick={() => { setConfirmDeleteId(null); setError(null); }} disabled={busyId === f.id}>
+                    Cancelar
+                  </Button>
+                  <Button size="sm" variant="danger" onClick={() => eliminar(f.id)} disabled={busyId === f.id}>
+                    {busyId === f.id ? "Eliminando..." : "Sí, eliminar"}
+                  </Button>
+                </div>
               </div>
-              <div className="flex gap-2 shrink-0">
-                <Button size="sm" variant="secondary" onClick={() => setConfirmDeleteId(null)} disabled={busyId === f.id}>
-                  Cancelar
-                </Button>
-                <Button size="sm" variant="danger" onClick={() => eliminar(f.id)} disabled={busyId === f.id}>
-                  {busyId === f.id ? "Eliminando..." : "Sí, eliminar"}
-                </Button>
-              </div>
+              {error && (
+                <div className="bg-danger-soft/20 border border-danger/20 text-danger p-3 rounded-lg text-xs font-semibold">
+                  {error}
+                </div>
+              )}
             </Card>
           ) : (
             <Card key={f.id} className="flex items-center justify-between p-4">
@@ -126,15 +133,19 @@ function FrenteForm({
   onCancel?: () => void;
 }) {
   const [estado, setEstado] = useState<"idle" | "enviando">("idle");
+  const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setEstado("enviando");
+    setError(null);
     const data = Object.fromEntries(new FormData(e.currentTarget));
     try {
       if (frente) await apiActualizarFrente(frente.id, data);
       else await apiCrearFrente(data);
       onDone();
+    } catch (err) {
+      setError((err as Error).message || "No se pudo guardar el frente.");
     } finally {
       setEstado("idle");
     }
@@ -145,6 +156,11 @@ function FrenteForm({
       <h2 className="mb-4 font-serif text-lg font-semibold text-ink">
         {frente ? "Editar frente" : "Agregar frente"}
       </h2>
+      {error && (
+        <div className="mb-4 bg-danger-soft/20 border border-danger/20 text-danger p-3 rounded-lg text-sm font-medium">
+          {error}
+        </div>
+      )}
       <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
         <Field label="Nombre" htmlFor="f-name" required>
           <Input id="f-name" name="name" defaultValue={frente?.name} required />

@@ -19,6 +19,7 @@ import {
   apiInsumos,
   apiEntregas,
   apiCrearEntrega,
+  apiEliminarEntrega,
 } from "@/lib/admin-api";
 
 interface SupplyOpt {
@@ -39,6 +40,9 @@ export default function AdminEntregasPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [estado, setEstado] = useState<"idle" | "enviando">("idle");
   const [error, setError] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   function cargar() {
     apiEntregas()
@@ -50,6 +54,20 @@ export default function AdminEntregasPage() {
     apiInsumos().then((r) => setSupplies(r.insumos)).catch(() => {});
     cargar();
   }, []);
+
+  async function eliminar(id: string) {
+    setBusyId(id);
+    setDeleteError(null);
+    try {
+      await apiEliminarEntrega(id);
+      setConfirmDeleteId(null);
+      cargar();
+    } catch (err) {
+      setDeleteError((err as Error).message || "No se pudo eliminar la entrega.");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   function setRow(i: number, patch: Partial<ItemRow>) {
     setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
@@ -209,22 +227,51 @@ export default function AdminEntregasPage() {
 
       <section className="space-y-3">
         <h2 className="font-serif text-lg font-semibold text-ink">Entregas registradas</h2>
-        {entregas.map((e) => (
-          <Card key={e.id} className="flex items-center justify-between p-4">
-            <div className="flex items-center gap-3">
-              <span className="text-brand">
-                <IconMapPin size={18} />
-              </span>
-              <div>
-                <p className="font-medium text-ink">{e.title}</p>
-                <p className="text-sm text-ink-subtle">
-                  {e.frente.name} · {formatDate(e.deliveredAt)} · {e.items.length} insumos ·{" "}
-                  {e.photos.length} fotos
-                </p>
+        {entregas.map((e) =>
+          confirmDeleteId === e.id ? (
+            <Card key={e.id} className="flex flex-col gap-3 bg-danger-soft/10 border border-danger/20 p-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-bold text-danger">¿Eliminar la entrega "{e.title}"?</p>
+                  <p className="text-xs text-ink-muted mt-0.5">Esta acción no se puede deshacer y restaurará el stock de los insumos en el inventario.</p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <Button size="sm" variant="secondary" onClick={() => { setConfirmDeleteId(null); setDeleteError(null); }} disabled={busyId === e.id}>
+                    Cancelar
+                  </Button>
+                  <Button size="sm" variant="danger" onClick={() => eliminar(e.id)} disabled={busyId === e.id}>
+                    {busyId === e.id ? "Eliminando..." : "Sí, eliminar"}
+                  </Button>
+                </div>
               </div>
-            </div>
-          </Card>
-        ))}
+              {deleteError && (
+                <div className="bg-danger-soft/20 border border-danger/20 text-danger p-3 rounded-lg text-xs font-semibold">
+                  {deleteError}
+                </div>
+              )}
+            </Card>
+          ) : (
+            <Card key={e.id} className="flex items-center justify-between p-4">
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 text-brand">
+                  <IconMapPin size={18} />
+                </span>
+                <div>
+                  <p className="font-medium text-ink">{e.title}</p>
+                  <p className="text-sm text-ink-subtle">
+                    {e.frente.name} · {formatDate(e.deliveredAt)} · {e.items.length} insumos ·{" "}
+                    {e.photos.length} fotos
+                  </p>
+                </div>
+              </div>
+              <div>
+                <Button variant="ghost" size="sm" className="text-danger hover:bg-danger-soft/20" onClick={() => setConfirmDeleteId(e.id)}>
+                  Eliminar
+                </Button>
+              </div>
+            </Card>
+          )
+        )}
         {entregas.length === 0 && <p className="text-ink-muted">Aún no hay entregas.</p>}
       </section>
     </div>

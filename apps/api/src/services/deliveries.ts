@@ -1,7 +1,7 @@
 import { prisma, Prisma } from "@nehemias/db";
 import { toPublicDelivery, type DeliveryInput } from "@nehemias/core";
 import { ApiError } from "../http.js";
-import { applyStockOut } from "./inventory.js";
+import { applyStockOut, recalcUrgent } from "./inventory.js";
 
 const fullInclude = {
   frente: true,
@@ -73,4 +73,35 @@ export async function listPublicDeliveries(limit?: number) {
 export async function getPublicDelivery(id: string) {
   const row = await prisma.delivery.findUnique({ where: { id }, include: fullInclude });
   return row ? toPublicDelivery(row) : null;
+}
+
+export async function deleteDelivery(id: string) {
+  return prisma.$transaction(async (tx) => {
+    const delivery = await tx.delivery.findUnique({
+      where: { id },
+      include: { items: true },
+    });
+    if (!delivery) throw new ApiError(404, "La entrega no existe.");
+
+    // Restore stock for items that have a supplyId
+    for (const item of delivery.items) {
+      if (item.supplyId) {
+        await tx.supply.update({
+          where: { id: item.supplyId },
+          data: { currentStock: { increment: item.quantity } },
+        });
+        await recalcUrgent(tx, item.supplyId);
+      }
+    }
+
+    // Delete stock movements related to this delivery
+    await tx.stockMovement.deleteMany({
+      where: { refType: "delivery", refId: id },
+    });
+
+    // Delete the delivery (items and photos are Cascade-deleted by DB constraint)
+    await tx.delivery.delete({
+      where: { id },
+    });
+  });
 }

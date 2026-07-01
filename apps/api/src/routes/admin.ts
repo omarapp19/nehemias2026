@@ -30,7 +30,7 @@ import {
   deleteSupply,
 } from "../services/inventory.js";
 import { listFrentes, createFrente, updateFrente, deleteFrente } from "../services/frentes.js";
-import { createDelivery, listPublicDeliveries } from "../services/deliveries.js";
+import { createDelivery, listPublicDeliveries, deleteDelivery } from "../services/deliveries.js";
 import {
   listAllPaymentInfo,
   createPaymentInfo,
@@ -232,6 +232,14 @@ adminRouter.post(
     }
     const entrega = await createDelivery(input, adminId(req), photoUrls);
     res.status(201).json({ entrega });
+  }),
+);
+
+adminRouter.delete(
+  "/entregas/:id",
+  asyncHandler(async (req, res) => {
+    await deleteDelivery(req.params.id);
+    res.json({ ok: true });
   }),
 );
 

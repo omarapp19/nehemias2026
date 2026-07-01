@@ -79,6 +79,7 @@ export const apiEliminarFrente = (id: string) => apiJson(`/admin/frentes/${id}`,
 // — Entregas —
 export const apiEntregas = () => apiGet("/admin/entregas");
 export const apiCrearEntrega = (form: FormData) => apiForm("/admin/entregas", form);
+export const apiEliminarEntrega = (id: string) => apiJson(`/admin/entregas/${id}`, "DELETE", {});
 
 // — Captación —
 export const apiCaptacion = () => apiGet("/admin/captacion");
