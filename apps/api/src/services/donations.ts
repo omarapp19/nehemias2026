@@ -159,7 +159,7 @@ export async function listAdminDonations(status?: "pending" | "verified" | "reje
   const rows = await prisma.donation.findMany({
     where: status ? { status } : undefined,
     include: withItems,
-    orderBy: [{ status: "asc" }, { donatedAt: "desc" }],
+    orderBy: [{ status: "asc" }, { donatedAt: "desc" }, { createdAt: "desc" }],
   });
   return rows.map(toAdminDonation);
 }
@@ -168,7 +168,7 @@ export async function listAdminDonations(status?: "pending" | "verified" | "reje
 export async function listPublicVerifiedDonations(limit?: number) {
   const rows = await prisma.donation.findMany({
     where: { status: "verified" },
-    orderBy: { donatedAt: "desc" },
+    orderBy: [{ donatedAt: "desc" }, { createdAt: "desc" }],
     take: limit,
     include: withItems,
   });
