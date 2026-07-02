@@ -250,8 +250,11 @@ async function main() {
     console.warn(`⚠️ Archivo de egresos no encontrado en: ${expensesCsvPath}`);
   }
 
-  // 6. Importar y comprimir Galería de fotos desde public/fotos
-  const fotosSourceDir = path.resolve(process.cwd(), "../../apps/web/public/fotos");
+  // 6. Importar y comprimir Galería de fotos desde public/fotos o public/FOTOS
+  let fotosSourceDir = path.resolve(process.cwd(), "../../apps/web/public/fotos");
+  if (!fs.existsSync(fotosSourceDir)) {
+    fotosSourceDir = path.resolve(process.cwd(), "../../apps/web/public/FOTOS");
+  }
   const galleryDestDir = path.resolve(process.cwd(), "../../apps/api/uploads/gallery");
 
   if (fs.existsSync(fotosSourceDir)) {
