@@ -3,6 +3,7 @@ import { buttonClasses } from "@nehemias/ui";
 import { Logo } from "./brand";
 
 const NAV = [
+  { href: "/", label: "Inicio" },
   { href: "/transparencia", label: "Transparencia" },
   { href: "/necesidades", label: "Necesidades" },
   { href: "/galeria", label: "Galería" },
