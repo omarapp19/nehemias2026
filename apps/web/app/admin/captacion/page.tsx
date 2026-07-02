@@ -8,6 +8,8 @@ import {
   apiCrearCaptacion,
   apiActualizarCaptacion,
   apiEliminarCaptacion,
+  apiSettings,
+  apiActualizarSettings,
 } from "@/lib/admin-api";
 
 interface PaymentRow {
@@ -25,8 +27,21 @@ export default function AdminCaptacionPage() {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [mounted, setMounted] = useState(false);
 
+  const [settings, setSettings] = useState<{ contact_phone: string; contact_email: string; contact_sede: string }>({
+    contact_phone: "",
+    contact_email: "",
+    contact_sede: "",
+  });
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsMessage, setSettingsMessage] = useState("");
+
   useEffect(() => {
     setMounted(true);
+    apiSettings()
+      .then((res) => {
+        if (res.settings) setSettings(res.settings);
+      })
+      .catch(() => {});
   }, []);
 
   function cargar() {
@@ -35,6 +50,29 @@ export default function AdminCaptacionPage() {
       .catch(() => setItems([]));
   }
   useEffect(cargar, []);
+
+  async function saveSettings(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSettingsSaving(true);
+    setSettingsMessage("");
+    const fd = new FormData(e.currentTarget);
+    const data = {
+      contact_phone: fd.get("contact_phone") as string,
+      contact_email: fd.get("contact_email") as string,
+      contact_sede: fd.get("contact_sede") as string,
+    };
+    try {
+      const res = await apiActualizarSettings(data);
+      if (res.settings) {
+        setSettings(res.settings);
+        setSettingsMessage("Datos de contacto guardados correctamente.");
+      }
+    } catch {
+      setSettingsMessage("Error al guardar los datos de contacto.");
+    } finally {
+      setSettingsSaving(false);
+    }
+  }
 
   useEffect(() => {
     if (mostrarForm || editId !== null) {
@@ -75,6 +113,56 @@ export default function AdminCaptacionPage() {
           {mostrarForm ? "Ocultar Formulario" : "Agregar Método"}
         </Button>
       </div>
+
+      {/* Sección de Datos de Contacto */}
+      <Card className="p-6 bg-white border border-border/80 shadow-sm space-y-4">
+        <div>
+          <h2 className="font-serif text-xl font-bold text-ink">Datos de contacto públicos</h2>
+          <p className="text-xs text-ink-muted mt-0.5">
+            Esta información se muestra al público en el portal de transparencia y formulario de donación.
+          </p>
+        </div>
+        <form onSubmit={saveSettings} className="grid gap-4 sm:grid-cols-3">
+          <Field label="Teléfono / WhatsApp de Contacto" htmlFor="contact_phone" required>
+            <Input
+              id="contact_phone"
+              name="contact_phone"
+              value={settings.contact_phone}
+              onChange={(e) => setSettings({ ...settings, contact_phone: e.target.value })}
+              required
+            />
+          </Field>
+          <Field label="Correo Electrónico" htmlFor="contact_email" required>
+            <Input
+              id="contact_email"
+              name="contact_email"
+              type="email"
+              value={settings.contact_email}
+              onChange={(e) => setSettings({ ...settings, contact_email: e.target.value })}
+              required
+            />
+          </Field>
+          <Field label="Sede de Acopio (Ubicación)" htmlFor="contact_sede" required>
+            <Input
+              id="contact_sede"
+              name="contact_sede"
+              value={settings.contact_sede}
+              onChange={(e) => setSettings({ ...settings, contact_sede: e.target.value })}
+              required
+            />
+          </Field>
+          <div className="sm:col-span-3 flex items-center justify-between gap-4 mt-2">
+            {settingsMessage && (
+              <p className={`text-sm font-semibold ${settingsMessage.includes("Error") ? "text-danger" : "text-success"}`}>
+                {settingsMessage}
+              </p>
+            )}
+            <Button type="submit" disabled={settingsSaving} className="ml-auto">
+              {settingsSaving ? "Guardando..." : "Guardar Datos de Contacto"}
+            </Button>
+          </div>
+        </form>
+      </Card>
 
       {/* Modal para Agregar */}
       {mounted && mostrarForm && createPortal(

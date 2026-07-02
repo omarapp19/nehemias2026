@@ -13,6 +13,7 @@ import { listPublicExpenses } from "../services/expenses.js";
 import { listSupplies, listUrgentSupplies } from "../services/inventory.js";
 import { getBalances } from "../services/transparency.js";
 import { listActivePaymentInfo } from "../services/paymentInfo.js";
+import { getSettings } from "../services/settings.js";
 import { toPublicSupply } from "@nehemias/core";
 
 export const publicRouter = Router();
@@ -111,6 +112,11 @@ publicRouter.get(
 publicRouter.get(
   "/captacion",
   asyncHandler(async (_req, res) => res.json({ captacion: await listActivePaymentInfo() })),
+);
+
+publicRouter.get(
+  "/settings",
+  asyncHandler(async (_req, res) => res.json({ settings: await getSettings() })),
 );
 
 // ---------- Camino B: el público declara su donación ----------

@@ -11,6 +11,13 @@ export const INTERNAL_API_BASE =
 /** URL pública de un archivo. Acepta rutas relativas ("deliveries/x.webp") o URLs absolutas. */
 export function fileUrl(relativePath: string | null | undefined): string | null {
   if (!relativePath) return null;
-  if (/^https?:\/\//.test(relativePath)) return relativePath; // ya es absoluta (datos de demo)
+  if (/^https?:\/\//.test(relativePath)) {
+    const filesIndex = relativePath.indexOf("/files/");
+    if (filesIndex !== -1) {
+      const pathAfterFiles = relativePath.substring(filesIndex + 7);
+      return `${PUBLIC_API_BASE}/files/${pathAfterFiles}`;
+    }
+    return relativePath;
+  }
   return `${PUBLIC_API_BASE}/files/${relativePath}`;
 }

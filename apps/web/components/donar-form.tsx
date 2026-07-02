@@ -35,7 +35,7 @@ export function DonarForm() {
       .then((r) => r.json())
       .then((data) => {
         if (data.captacion) {
-          const activeMethods = data.captacion.filter((m: any) => m.isActive);
+          const activeMethods = data.captacion;
           setMetodos(activeMethods);
           if (activeMethods.length > 0 && activeMethods[0].defaultCurrency) {
             handleMonedaChange(activeMethods[0].defaultCurrency);
@@ -250,15 +250,17 @@ export function DonarForm() {
                 required
               />
             </div>
-            <Select
-              id="moneda-select"
-              value={moneda}
-              onChange={(e) => handleMonedaChange(e.target.value as any)}
-              className="w-24 shrink-0 font-bold"
-            >
-              <option value="USD">USD</option>
-              <option value="VES">VES</option>
-            </Select>
+            <div className="w-24 shrink-0">
+              <Select
+                id="moneda-select"
+                value={moneda}
+                onChange={(e) => handleMonedaChange(e.target.value as any)}
+                className="font-bold"
+              >
+                <option value="USD">USD</option>
+                <option value="VES">VES</option>
+              </Select>
+            </div>
           </div>
         </Field>
 

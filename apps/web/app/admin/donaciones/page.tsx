@@ -406,12 +406,27 @@ export default function AdminDonacionesPage() {
                 <div className="text-sm font-semibold text-ink-subtle animate-pulse">Cargando comprobante...</div>
               ) : secureError ? (
                 <div className="text-sm font-semibold text-danger bg-danger-soft/30 border border-danger/10 p-4 rounded-xl">{secureError}</div>
-              ) : modalUrl.toLowerCase().endsWith(".pdf") || modalUrl.includes("drive.google.com") ? (
+              ) : modalUrl.includes("drive.google.com") ? (
+                <div className="text-center p-8 space-y-4 max-w-md bg-white border border-border/80 rounded-2xl shadow-sm flex flex-col items-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft/50 text-brand">
+                    <IconCamera size={24} />
+                  </div>
+                  <h3 className="font-serif text-lg font-bold text-ink">Comprobante en Google Drive</h3>
+                  <p className="text-sm text-ink-muted leading-relaxed">
+                    Este comprobante está almacenado de forma segura en Google Drive y no se puede previsualizar directamente aquí debido a políticas de seguridad.
+                  </p>
+                  <a
+                    href={modalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-lg bg-brand text-brand-contrast hover:bg-brand-strong px-5 py-2.5 text-sm font-semibold shadow-md transition-all cursor-pointer"
+                  >
+                    Abrir en pestaña nueva
+                  </a>
+                </div>
+              ) : modalUrl.toLowerCase().endsWith(".pdf") ? (
                 <iframe
-                  src={modalUrl.includes("drive.google.com") ? (() => {
-                    const match = modalUrl.match(/\/d\/([a-zA-Z0-9-_]+)/) || modalUrl.match(/[?&]id=([a-zA-Z0-9-_]+)/);
-                    return match ? `https://drive.google.com/file/d/${match[1]}/preview` : modalUrl;
-                  })() : secureModalUrl || ""}
+                  src={secureModalUrl || ""}
                   title="Comprobante PDF"
                   className="w-full h-[60vh] border-0 rounded-md shadow-sm bg-background"
                 />

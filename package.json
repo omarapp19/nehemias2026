@@ -23,6 +23,7 @@
   "devDependencies": {
     "dotenv-cli": "^7.4.4",
     "prettier": "^3.3.3",
+    "ssh2": "^1.17.0",
     "turbo": "^2.3.3",
     "typescript": "^5.6.3"
   },

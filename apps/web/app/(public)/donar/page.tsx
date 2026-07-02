@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, SectionHeader, buttonClasses } from "@nehemias/ui";
-import { getCaptacion } from "@/lib/api";
+import { getCaptacion, getSettings } from "@/lib/api";
 import { DonarForm } from "@/components/donar-form";
 import { PaymentMethodCard } from "@/components/payment-method-card";
 
@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function DonarPage() {
   const { captacion } = await getCaptacion();
+  const { settings } = await getSettings();
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-16 sm:py-24">
@@ -70,8 +71,7 @@ export default async function DonarPage() {
             <Card className="p-6 border border-border/80 bg-white hover:border-brand/35 transition-all duration-300 shadow-sm flex flex-col justify-between items-center">
               <div>
                 <span className="text-xs font-bold uppercase text-brand tracking-wider">WhatsApp / Teléfono</span>
-                <p className="mt-3 text-base font-bold text-ink font-mono">+58 (412) 555-0123</p>
-                <p className="mt-2 text-xs text-ink-subtle">Atención y coordinación directa de entregas</p>
+                <p className="mt-3 text-base font-bold text-ink font-mono">{settings.contact_phone}</p>
               </div>
               <Link
                 href="https://wa.me/584125550123"
@@ -86,8 +86,7 @@ export default async function DonarPage() {
             <Card className="p-6 border border-border/80 bg-white hover:border-brand/35 transition-all duration-300 shadow-sm flex flex-col justify-between items-center">
               <div>
                 <span className="text-xs font-bold uppercase text-brand tracking-wider">Correo Electrónico</span>
-                <p className="mt-3 text-base font-bold text-ink truncate">contacto@nehemias.org</p>
-                <p className="mt-2 text-xs text-ink-subtle">Consultas de transparencia e institucionales</p>
+                <p className="mt-3 text-base font-bold text-ink truncate">{settings.contact_email}</p>
               </div>
               <Link
                 href="mailto:contacto@nehemias.org"
@@ -100,8 +99,7 @@ export default async function DonarPage() {
             <Card className="p-6 border border-border/80 bg-white hover:border-brand/35 transition-all duration-300 shadow-sm flex flex-col justify-between items-center">
               <div>
                 <span className="text-xs font-bold uppercase text-brand tracking-wider">Sede de Acopio</span>
-                <p className="mt-3 text-base font-bold text-ink">Caracas, Venezuela</p>
-                <p className="mt-2 text-xs text-ink-subtle">Punto único para recepción de insumos físicos</p>
+                <p className="mt-3 text-base font-bold text-ink">{settings.contact_sede}</p>
               </div>
             </Card>
           </div>
