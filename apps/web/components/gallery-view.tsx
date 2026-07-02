@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, formatDate, IconX, IconCamera } from "@nehemias/ui";
+import { Button, formatDate, IconX, IconCamera, IconArrowRight } from "@nehemias/ui";
 import { fileUrl } from "@/lib/config";
 
 interface PhotoItem {
@@ -75,13 +75,15 @@ export function GalleryView({ photos }: { photos: PhotoItem[] }) {
       </div>
 
       {photos.length > 0 && (
-        <div className="mt-6 flex items-center justify-between border-t border-border/50 pt-4">
+        <div className="mt-6 flex items-center justify-center gap-3 border-t border-border/50 pt-4">
           <Button
             variant="secondary"
             size="sm"
+            className="gap-1.5"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={paginaActual <= 1}
           >
+            <IconArrowRight size={16} className="rotate-180" />
             Atrás
           </Button>
           <p className="text-sm text-ink-muted">
@@ -90,10 +92,12 @@ export function GalleryView({ photos }: { photos: PhotoItem[] }) {
           <Button
             variant="secondary"
             size="sm"
+            className="gap-1.5"
             onClick={() => setPage((p) => Math.min(totalPaginas, p + 1))}
             disabled={paginaActual >= totalPaginas}
           >
             Adelante
+            <IconArrowRight size={16} />
           </Button>
         </div>
       )}
