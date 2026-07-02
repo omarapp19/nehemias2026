@@ -274,9 +274,9 @@ adminRouter.delete(
 adminRouter.post(
   "/sync-sheets",
   asyncHandler(async (_req, res) => {
-    const sheetId = process.env.GOOGLE_SHEET_ID;
-    const donationsGid = process.env.GOOGLE_SHEET_DONATIONS_GID ?? "616098203";
-    const expensesGid = process.env.GOOGLE_SHEET_EXPENSES_GID ?? "0";
+    const sheetId = process.env.GOOGLE_SHEET_ID?.trim();
+    const donationsGid = process.env.GOOGLE_SHEET_DONATIONS_GID?.trim() ?? "616098203";
+    const expensesGid = process.env.GOOGLE_SHEET_EXPENSES_GID?.trim() ?? "0";
 
     if (!sheetId) {
       throw new ApiError(400, "GOOGLE_SHEET_ID no está configurado en las variables de entorno.");

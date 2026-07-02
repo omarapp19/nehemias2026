@@ -14,7 +14,13 @@ function downloadCSV(targetUrl: string): Promise<string> {
         const parsedUrl = new URL(currentUrl);
         const client = parsedUrl.protocol === "https:" ? https : http;
 
-        client.get(currentUrl, (res) => {
+        const options = {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          }
+        };
+
+        client.get(currentUrl, options, (res) => {
           if (
             res.statusCode &&
             res.statusCode >= 300 &&
@@ -146,12 +152,16 @@ export async function syncGoogleSheets(
 ): Promise<{ donationsCount: number; expensesCount: number }> {
   if (!sheetId) throw new Error("ID de Google Sheet no configurado.");
 
-  const donationsUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${donationsGid}`;
-  const expensesUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${expensesGid}`;
+  const cleanSheetId = sheetId.trim();
+  const cleanDonationsGid = donationsGid.trim();
+  const cleanExpensesGid = expensesGid.trim();
 
-  console.log(`[Sync] Descargando donaciones desde GID ${donationsGid}...`);
+  const donationsUrl = `https://docs.google.com/spreadsheets/d/${cleanSheetId}/export?format=csv&gid=${cleanDonationsGid}`;
+  const expensesUrl = `https://docs.google.com/spreadsheets/d/${cleanSheetId}/export?format=csv&gid=${cleanExpensesGid}`;
+
+  console.log(`[Sync] Descargando donaciones desde GID ${cleanDonationsGid}...`);
   const donationsRaw = await downloadCSV(donationsUrl);
-  console.log(`[Sync] Descargando egresos desde GID ${expensesGid}...`);
+  console.log(`[Sync] Descargando egresos desde GID ${cleanExpensesGid}...`);
   const expensesRaw = await downloadCSV(expensesUrl);
 
   const donationsRows = parseCSV(donationsRaw);
