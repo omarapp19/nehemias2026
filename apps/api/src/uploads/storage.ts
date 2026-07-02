@@ -3,11 +3,11 @@ import fs from "node:fs/promises";
 import { env } from "../env.js";
 
 /** Categorías válidas de archivo subido. */
-export const UPLOAD_CATEGORIES = ["proofs", "invoices", "deliveries"] as const;
+export const UPLOAD_CATEGORIES = ["proofs", "invoices", "deliveries", "gallery"] as const;
 export type UploadCategory = (typeof UPLOAD_CATEGORIES)[number];
 
 /** proofs (comprobantes de donación) son privados; el resto son públicos. */
-const PUBLIC_CATEGORIES: readonly string[] = ["invoices", "deliveries"];
+const PUBLIC_CATEGORIES: readonly string[] = ["invoices", "deliveries", "gallery"];
 
 export function isPublicCategory(category: string): boolean {
   return PUBLIC_CATEGORIES.includes(category);
