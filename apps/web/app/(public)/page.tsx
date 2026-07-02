@@ -127,16 +127,16 @@ export default async function HomePage() {
         )}
 
         {/* ── Movimientos recientes ── */}
-        <section className="grid gap-10 lg:grid-cols-2">
-          <div>
+        <section className="grid gap-10 lg:grid-cols-2 items-stretch">
+          <div className="flex flex-col">
             <SectionHeader eyebrow="Ingresos" title="Últimos aportes verificados" />
-            <div className="mt-5">
+            <div className="mt-5 flex-1">
               <RecentDonations donations={data.ultimasDonaciones} exchangeRate={data.exchangeRate} />
             </div>
           </div>
-          <div>
+          <div className="flex flex-col">
             <SectionHeader eyebrow="Egresos" title="En qué se invirtió" />
-            <div className="mt-5">
+            <div className="mt-5 flex-1">
               <RecentExpenses expenses={data.ultimosEgresos} exchangeRate={data.exchangeRate} />
             </div>
           </div>
