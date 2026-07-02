@@ -281,7 +281,7 @@ function EgresoForm({
   const isEditing = !!initialData;
   const [estado, setEstado] = useState<"idle" | "enviando">("idle");
   const [error, setError] = useState("");
-  const [fileName, setFileName] = useState("");
+  const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [step, setStep] = useState(1);
 
   // States for currency calculator
@@ -408,6 +408,10 @@ function EgresoForm({
 
     data.set("createsStock", "false");
 
+    // Adjuntar factura explícitamente (evita bugs con DataTransfer en drag-and-drop)
+    if (invoiceFile) data.set("invoice", invoiceFile, invoiceFile.name);
+    else data.delete("invoice");
+
     try {
       if (isEditing) {
         await apiActualizarEgreso(initialData.id, data);
@@ -418,7 +422,7 @@ function EgresoForm({
       setStep(1);
       setUsdVal("");
       setVesVal("");
-      setFileName("");
+      setInvoiceFile(null);
       setEstado("idle");
       onDone();
     } catch (err) {
@@ -544,26 +548,7 @@ function EgresoForm({
 
         {/* Factura Upload area */}
         <div className="sm:col-span-2">
-          <span className="text-sm font-semibold text-ink block mb-2">Archivo de Factura o Comprobante (Público)</span>
-          <label
-            htmlFor="invoice"
-            className="mt-1 flex flex-col items-center justify-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border-strong bg-background p-6 text-center text-ink-muted hover:bg-surface hover:border-brand/35 hover:text-brand transition-all duration-200 shadow-sm"
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-sunken text-ink-muted group-hover:text-brand transition-colors">
-              <IconUpload size={18} />
-            </span>
-            <span className="text-sm font-semibold">{fileName || "Haz clic para subir foto o PDF de la factura"}</span>
-            <span className="text-[10px] text-ink-subtle">Soporta imágenes y archivos PDF de hasta 8MB</span>
-            <input
-              id="invoice"
-              name="invoice"
-              type="file"
-              accept="image/*,application/pdf"
-              capture="environment"
-              className="sr-only"
-              onChange={(e) => setFileName(e.target.files?.[0]?.name ?? "")}
-            />
-          </label>
+          <InvoiceUpload onFileChange={setInvoiceFile} />
         </div>
 
         {error && <p className="text-sm text-danger sm:col-span-2 font-medium">{error}</p>}
@@ -579,4 +564,134 @@ function EgresoForm({
     </form>
   );
 }
+
+function InvoiceUpload({ onFileChange }: { onFileChange: (f: File | null) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"];
+
+  const applyFile = (f: File) => {
+    if (!ALLOWED.includes(f.type)) return;
+    setFile(f);
+    onFileChange(f);
+    if (f.type.startsWith("image/")) {
+      setPreview(URL.createObjectURL(f));
+    } else {
+      setPreview(null);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) applyFile(f);
+  };
+
+  const handleClear = () => {
+    setFile(null);
+    setPreview(null);
+    onFileChange(null);
+    if (inputRef.current) inputRef.current.value = "";
+  };
+
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setDragging(true); };
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragging(false);
+  };
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f) applyFile(f);
+  };
+
+  const fmt = (bytes: number) =>
+    bytes < 1024 * 1024
+      ? `${(bytes / 1024).toFixed(0)} KB`
+      : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+
+  return (
+    <div className="space-y-1.5">
+      <span className="text-xs font-semibold text-ink-subtle block">
+        Factura o Comprobante{" "}
+        <span className="font-normal text-ink-subtle/70">(opcional · imagen o PDF)</span>
+      </span>
+
+      {/* Input oculto solo para clic — el archivo se pasa via onFileChange */}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+        onChange={handleChange}
+        className="sr-only"
+      />
+
+      {file ? (
+        <div className="rounded-xl border border-brand/30 bg-brand-soft/10 overflow-hidden">
+          {preview && (
+            <div className="relative w-full bg-surface-sunken/60 flex items-center justify-center max-h-48 overflow-hidden border-b border-brand/10">
+              <img src={preview} alt="Vista previa" className="max-h-48 max-w-full object-contain" />
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-8 w-8 rounded-lg bg-brand/15 flex items-center justify-center shrink-0">
+                <IconReceipt size={15} className="text-brand" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-ink truncate">{file.name}</p>
+                <p className="text-xs text-ink-subtle">{fmt(file.size)}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleClear}
+              className="shrink-0 p-1 rounded-full text-ink-muted hover:text-danger hover:bg-danger-soft/20 transition-colors cursor-pointer"
+              aria-label="Quitar archivo"
+            >
+              <IconX size={16} />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => inputRef.current?.click()}
+          onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`w-full flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed transition-all duration-200 py-8 cursor-pointer select-none ${
+            dragging
+              ? "border-brand bg-brand-soft/15 scale-[1.01] shadow-md shadow-brand/10"
+              : "border-border hover:border-brand/40 hover:bg-brand-soft/5 text-ink-muted hover:text-ink"
+          }`}
+        >
+          <div
+            className={`h-10 w-10 rounded-full flex items-center justify-center transition-all duration-200 ${
+              dragging ? "bg-brand/20 scale-110" : "bg-surface-sunken"
+            }`}
+          >
+            <IconUpload
+              size={20}
+              className={`transition-colors duration-200 ${dragging ? "text-brand" : "text-ink-subtle"}`}
+            />
+          </div>
+          <div className="text-center">
+            <span className={`text-xs font-semibold block ${dragging ? "text-brand" : ""}`}>
+              {dragging ? "Suelta aquí el archivo" : "Arrastra o haz clic para adjuntar factura"}
+            </span>
+            <span className="text-[10px] text-ink-subtle mt-0.5 block">
+              JPG, PNG, WEBP, GIF o PDF · máx. 8 MB
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
