@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Field, Input } from "@nehemias/ui";
+import Link from "next/link";
+import { Button, Field, Input, buttonClasses, IconArrowRight } from "@nehemias/ui";
 import { BrandMark } from "@/components/brand";
 import { apiLogin } from "@/lib/admin-api";
 
@@ -28,6 +29,13 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-5">
       <div className="w-full max-w-sm">
+        <Link
+          href="/"
+          className={buttonClasses("ghost", "sm", "mb-4 gap-1.5 text-ink-muted hover:text-brand")}
+        >
+          <IconArrowRight size={16} className="rotate-180" />
+          Volver al inicio
+        </Link>
         <div className="mb-6 flex flex-col items-center text-center">
           <BrandMark size={40} />
           <h1 className="mt-3 font-serif text-2xl font-semibold text-ink">Panel Nehemías</h1>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { formatDate, IconX, IconCamera } from "@nehemias/ui";
+import { Button, formatDate, IconX, IconCamera } from "@nehemias/ui";
 import { fileUrl } from "@/lib/config";
 
 interface PhotoItem {
@@ -11,8 +11,16 @@ interface PhotoItem {
   createdAt: string;
 }
 
+const PAGE_SIZE = 12;
+
 export function GalleryView({ photos }: { photos: PhotoItem[] }) {
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoItem | null>(null);
+  const [page, setPage] = useState(1);
+
+  const totalPaginas = Math.max(1, Math.ceil(photos.length / PAGE_SIZE));
+  const paginaActual = Math.min(page, totalPaginas);
+  const inicio = (paginaActual - 1) * PAGE_SIZE;
+  const fotosPagina = photos.slice(inicio, inicio + PAGE_SIZE);
 
   if (photos.length === 0) {
     return (
@@ -31,7 +39,7 @@ export function GalleryView({ photos }: { photos: PhotoItem[] }) {
   return (
     <>
       <div className="columns-1 gap-5 sm:columns-2 lg:columns-3 xl:columns-4 space-y-5">
-        {photos.map((photo) => {
+        {fotosPagina.map((photo) => {
           const src = fileUrl(photo.url);
           if (!src) return null;
 
@@ -65,6 +73,30 @@ export function GalleryView({ photos }: { photos: PhotoItem[] }) {
           );
         })}
       </div>
+
+      {photos.length > 0 && (
+        <div className="mt-6 flex items-center justify-between border-t border-border/50 pt-4">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={paginaActual <= 1}
+          >
+            Atrás
+          </Button>
+          <p className="text-sm text-ink-muted">
+            Página <span className="font-semibold text-ink">{paginaActual}</span> de {totalPaginas}
+          </p>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setPage((p) => Math.min(totalPaginas, p + 1))}
+            disabled={paginaActual >= totalPaginas}
+          >
+            Adelante
+          </Button>
+        </div>
+      )}
 
       {/* Lightbox Modal */}
       {selectedPhoto && (

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Card, SectionHeader } from "@nehemias/ui";
+import Link from "next/link";
+import { Card, SectionHeader, buttonClasses } from "@nehemias/ui";
 import { getCaptacion } from "@/lib/api";
 import { DonarForm } from "@/components/donar-form";
 import { PaymentMethodCard } from "@/components/payment-method-card";
@@ -65,29 +66,43 @@ export default async function DonarPage() {
             Si deseas donar insumos físicos (alimentos, ropa, medicinas), ser voluntario en las próximas jornadas de distribución, o tienes alguna consulta sobre los informes de transparencia, contáctanos directamente.
           </p>
 
-          <div className="mt-10 grid gap-6 sm:grid-cols-3 text-left">
-            <Card className="p-6 border border-border/80 bg-white hover:border-brand/35 transition-all duration-300 shadow-sm flex flex-col justify-between">
+          <div className="mt-10 grid gap-6 sm:grid-cols-3 text-center">
+            <Card className="p-6 border border-border/80 bg-white hover:border-brand/35 transition-all duration-300 shadow-sm flex flex-col justify-between items-center">
               <div>
                 <span className="text-xs font-bold uppercase text-brand tracking-wider">WhatsApp / Teléfono</span>
                 <p className="mt-3 text-base font-bold text-ink font-mono">+58 (412) 555-0123</p>
+                <p className="mt-2 text-xs text-ink-subtle">Atención y coordinación directa de entregas</p>
               </div>
-              <p className="mt-2 text-xs text-ink-subtle">Atención y coordinación directa de entregas</p>
+              <Link
+                href="https://wa.me/584125550123"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={buttonClasses("secondary", "sm", "mt-4 w-full text-center")}
+              >
+                Escribir por WhatsApp
+              </Link>
             </Card>
 
-            <Card className="p-6 border border-border/80 bg-white hover:border-brand/35 transition-all duration-300 shadow-sm flex flex-col justify-between">
+            <Card className="p-6 border border-border/80 bg-white hover:border-brand/35 transition-all duration-300 shadow-sm flex flex-col justify-between items-center">
               <div>
                 <span className="text-xs font-bold uppercase text-brand tracking-wider">Correo Electrónico</span>
                 <p className="mt-3 text-base font-bold text-ink truncate">contacto@nehemias.org</p>
+                <p className="mt-2 text-xs text-ink-subtle">Consultas de transparencia e institucionales</p>
               </div>
-              <p className="mt-2 text-xs text-ink-subtle">Consultas de transparencia e institucionales</p>
+              <Link
+                href="mailto:contacto@nehemias.org"
+                className={buttonClasses("secondary", "sm", "mt-4 w-full text-center")}
+              >
+                Enviar correo
+              </Link>
             </Card>
 
-            <Card className="p-6 border border-border/80 bg-white hover:border-brand/35 transition-all duration-300 shadow-sm flex flex-col justify-between">
+            <Card className="p-6 border border-border/80 bg-white hover:border-brand/35 transition-all duration-300 shadow-sm flex flex-col justify-between items-center">
               <div>
                 <span className="text-xs font-bold uppercase text-brand tracking-wider">Sede de Acopio</span>
                 <p className="mt-3 text-base font-bold text-ink">Caracas, Venezuela</p>
+                <p className="mt-2 text-xs text-ink-subtle">Punto único para recepción de insumos físicos</p>
               </div>
-              <p className="mt-2 text-xs text-ink-subtle">Punto único para recepción de insumos físicos</p>
             </Card>
           </div>
         </div>
