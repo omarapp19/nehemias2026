@@ -27,10 +27,10 @@ export const theme = {
     inkMuted: "#4B5563", // texto secundario (gris 600)
     inkSubtle: "#9CA3AF", // etiquetas, ayudas, placeholders (gris 400)
 
-    // — Marca: verde bosque profundo y profesional (Nehemías reconstruye) —
-    brand: "#0B442D", // acento institucional principal
-    brandStrong: "#083322", // hover / énfasis
-    brandSoft: "#E6EFEA", // fondos teñidos de marca
+    // — Marca: negro y gris oscuro minimalista —
+    brand: "#111827", // acento institucional principal (negro mate)
+    brandStrong: "#000000", // hover / énfasis (negro puro)
+    brandSoft: "#F3F4F6", // fondos teñidos (gris suave)
     brandContrast: "#FFFFFF", // texto sobre fondo de marca
 
     // — Bordes (líneas finas limpias) —
@@ -46,7 +46,7 @@ export const theme = {
     dangerSoft: "#FEE2E2",
 
     // — Foco accesible —
-    focus: "#0B442D",
+    focus: "#111827",
   },
 
   /** Tipografía. Las familias se cargan en apps/web vía next/font. */
@@ -67,9 +67,9 @@ export const theme = {
 
   /** Sombras suaves y profesionales (tinte de tinta, no gris frío de plantilla). */
   shadows: {
-    sm: "0 1px 2px rgba(22, 28, 24, 0.04)",
-    md: "0 4px 12px -2px rgba(22, 28, 24, 0.06), 0 2px 4px -1px rgba(22, 28, 24, 0.03)",
-    lg: "0 12px 28px -4px rgba(22, 28, 24, 0.08), 0 4px 12px -2px rgba(22, 28, 24, 0.04)",
+    sm: "0 1px 2px rgba(17, 24, 39, 0.04)",
+    md: "0 4px 12px -2px rgba(17, 24, 39, 0.05), 0 2px 4px -1px rgba(17, 24, 39, 0.02)",
+    lg: "0 12px 28px -4px rgba(17, 24, 39, 0.06), 0 4px 12px -2px rgba(17, 24, 39, 0.03)",
   },
 } as const;
 

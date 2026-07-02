@@ -29,3 +29,9 @@ packages/db/prisma/*.db
 npm-debug.log*
 .DS_Store
 coverage/
+
+# Fotos y videos originales (pesados, se procesan con el seed)
+apps/web/public/FOTOS/
+apps/web/public/fotos/
+*.mp4
+

@@ -11,6 +11,8 @@
   body {
     @apply bg-background text-ink font-sans antialiased;
     text-rendering: optimizeLegibility;
+    background-image: radial-gradient(at 0% 0%, rgba(243, 244, 246, 0.8) 0, transparent 50%), radial-gradient(at 100% 100%, rgba(243, 244, 246, 0.8) 0, transparent 50%);
+    background-attachment: fixed;
   }
 
   /* Foco visible y consistente para accesibilidad por teclado. */
@@ -48,7 +50,7 @@
     border-radius: 4px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #0B442D;
+    background: #111827;
   }
   .custom-scrollbar {
     scrollbar-width: thin;

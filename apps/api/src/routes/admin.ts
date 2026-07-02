@@ -1,14 +1,18 @@
 import { Router } from "express";
 import {
   adminCreateDonationSchema,
+  adminUpdateDonationSchema,
   reviewDonationSchema,
   expenseSchema,
+  expenseUpdateSchema,
   supplySchema,
   supplyUpdateSchema,
-  frenteSchema,
-  deliverySchema,
   paymentInfoSchema,
 } from "@nehemias/core";
+import { prisma } from "@nehemias/db";
+import fs from "node:fs";
+import path from "node:path";
+import { resolveStoredPath } from "../uploads/storage.js";
 import { asyncHandler, ApiError } from "../http.js";
 import { requireAdmin } from "../auth/middleware.js";
 import { upload } from "../uploads/middleware.js";
@@ -17,15 +21,17 @@ import {
   adminCreateDonation,
   reviewDonation,
   listAdminDonations,
+  updateDonation,
+  deleteDonation,
 } from "../services/donations.js";
-import { createExpense, listPublicExpenses } from "../services/expenses.js";
+import { createExpense, listPublicExpenses, updateExpense, deleteExpense } from "../services/expenses.js";
 import {
   listSupplies,
   createSupply,
   updateSupply,
+  deleteSupply,
 } from "../services/inventory.js";
-import { listFrentes, createFrente, updateFrente } from "../services/frentes.js";
-import { createDelivery, listPublicDeliveries } from "../services/deliveries.js";
+
 import {
   listAllPaymentInfo,
   createPaymentInfo,
@@ -85,6 +91,29 @@ adminRouter.post(
   }),
 );
 
+adminRouter.put(
+  "/donaciones/:id",
+  upload.single("proof"),
+  asyncHandler(async (req, res) => {
+    const input = adminUpdateDonationSchema.parse({
+      ...req.body,
+      inKindItems: parseMaybeJson(req.body.inKindItems),
+    });
+    let proofUrl: string | undefined;
+    if (req.file) proofUrl = await processAndStore("proofs", req.file);
+    const donacion = await updateDonation(req.params.id, input, proofUrl);
+    res.json({ donacion });
+  }),
+);
+
+adminRouter.delete(
+  "/donaciones/:id",
+  asyncHandler(async (req, res) => {
+    await deleteDonation(req.params.id);
+    res.json({ ok: true });
+  }),
+);
+
 // ---------- EGRESOS ----------
 adminRouter.get(
   "/egresos",
@@ -100,6 +129,26 @@ adminRouter.post(
     if (req.file) invoiceUrl = await processAndStore("invoices", req.file);
     const egreso = await createExpense(input, adminId(req), invoiceUrl);
     res.status(201).json({ egreso });
+  }),
+);
+
+adminRouter.put(
+  "/egresos/:id",
+  upload.single("invoice"),
+  asyncHandler(async (req, res) => {
+    const input = expenseUpdateSchema.parse(req.body);
+    let invoiceUrl: string | undefined;
+    if (req.file) invoiceUrl = await processAndStore("invoices", req.file);
+    const egreso = await updateExpense(req.params.id, input, invoiceUrl);
+    res.json({ egreso });
+  }),
+);
+
+adminRouter.delete(
+  "/egresos/:id",
+  asyncHandler(async (req, res) => {
+    await deleteExpense(req.params.id);
+    res.json({ ok: true });
   }),
 );
 
@@ -125,51 +174,70 @@ adminRouter.patch(
   }),
 );
 
-// ---------- FRENTES ----------
-adminRouter.get(
-  "/frentes",
-  asyncHandler(async (_req, res) => res.json({ frentes: await listFrentes() })),
-);
-
-adminRouter.post(
-  "/frentes",
+adminRouter.delete(
+  "/insumos/:id",
   asyncHandler(async (req, res) => {
-    const input = frenteSchema.parse(req.body);
-    res.status(201).json({ frente: await createFrente(input) });
+    await deleteSupply(req.params.id);
+    res.json({ ok: true });
   }),
 );
 
-adminRouter.put(
-  "/frentes/:id",
-  asyncHandler(async (req, res) => {
-    const input = frenteSchema.parse(req.body);
-    res.json({ frente: await updateFrente(req.params.id, input) });
-  }),
-);
 
-// ---------- ENTREGAS ----------
+// ---------- GALERÍA ----------
 adminRouter.get(
-  "/entregas",
-  asyncHandler(async (_req, res) => res.json({ entregas: await listPublicDeliveries(200) })),
-);
-
-adminRouter.post(
-  "/entregas",
-  upload.array("photos", 12),
-  asyncHandler(async (req, res) => {
-    const input = deliverySchema.parse({
-      ...req.body,
-      items: parseMaybeJson(req.body.items) ?? [],
+  "/galeria",
+  asyncHandler(async (_req, res) => {
+    const fotos = await prisma.galleryPhoto.findMany({
+      orderBy: { createdAt: "desc" },
     });
-    const files = (req.files as Express.Multer.File[] | undefined) ?? [];
-    const photoUrls: string[] = [];
-    for (const f of files) {
-      photoUrls.push(await processAndStore("deliveries", f));
-    }
-    const entrega = await createDelivery(input, adminId(req), photoUrls);
-    res.status(201).json({ entrega });
+    res.json({ fotos });
   }),
 );
+
+adminRouter.post(
+  "/galeria",
+  upload.array("photos", 24),
+  asyncHandler(async (req, res) => {
+    const files = (req.files as Express.Multer.File[] | undefined) ?? [];
+    const created = [];
+    for (const f of files) {
+      const url = await processAndStore("gallery", f);
+      const title = f.originalname
+        .replace(/\.[^/.]+$/, "")
+        .replace(/^#/, "")
+        .trim();
+      const photo = await prisma.galleryPhoto.create({
+        data: {
+          url,
+          title: title || null,
+        },
+      });
+      created.push(photo);
+    }
+    res.status(201).json({ fotos: created });
+  }),
+);
+
+adminRouter.delete(
+  "/galeria/:id",
+  asyncHandler(async (req, res) => {
+    const photo = await prisma.galleryPhoto.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!photo) throw new ApiError(404, "Foto no encontrada.");
+
+    const absPath = resolveStoredPath("gallery", path.basename(photo.url));
+    if (absPath && fs.existsSync(absPath)) {
+      fs.unlinkSync(absPath);
+    }
+
+    await prisma.galleryPhoto.delete({
+      where: { id: req.params.id },
+    });
+    res.json({ ok: true });
+  }),
+);
+
 
 // ---------- CAPTACIÓN ----------
 adminRouter.get(

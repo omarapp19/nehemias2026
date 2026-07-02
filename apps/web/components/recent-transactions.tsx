@@ -18,6 +18,8 @@ export function RecentDonations({ donations, exchangeRate }: { donations: Public
             amount={d.amount ?? 0}
             currency={d.currency}
             fecha={d.donatedAt}
+            comprobanteUrl={fileUrl(d.proofUrl)}
+            comprobanteLabel="Ver soporte"
             exchangeRate={exchangeRate}
           />
         ))}
@@ -40,7 +42,7 @@ export function RecentExpenses({ expenses, exchangeRate }: { expenses: PublicExp
             currency={e.currency}
             fecha={e.spentAt}
             comprobanteUrl={fileUrl(e.invoiceUrl)}
-            exchangeRate={exchangeRate}
+            exchangeRate={e.exchangeRate ?? exchangeRate}
           />
         ))}
       </div>

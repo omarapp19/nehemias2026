@@ -3,8 +3,6 @@ import type {
   PublicDonation,
   PublicExpense,
   PublicSupply,
-  PublicFrente,
-  PublicDelivery,
   PublicPaymentInfo,
 } from "@nehemias/core";
 import { INTERNAL_API_BASE } from "./config";
@@ -27,8 +25,8 @@ export interface HomeSnapshot {
   urgentes: PublicSupply[];
   ultimasDonaciones: PublicDonation[];
   ultimosEgresos: PublicExpense[];
-  ultimasEntregas: PublicDelivery[];
   captacion: PublicPaymentInfo[];
+  ultimasFotos: { id: string; url: string; title: string | null; createdAt: string }[];
 }
 
 export const getHome = () => getJSON<HomeSnapshot>("/public/home");
@@ -46,13 +44,8 @@ export const getInsumos = () => getJSON<{ insumos: PublicSupply[] }>("/public/in
 export const getNecesidades = () =>
   getJSON<{ necesidades: PublicSupply[] }>("/public/necesidades");
 
-export const getFrentes = () => getJSON<{ frentes: PublicFrente[] }>("/public/frentes");
-
-export const getEntregas = () =>
-  getJSON<{ entregas: PublicDelivery[] }>("/public/entregas");
-
-export const getEntrega = (id: string) =>
-  getJSON<{ entrega: PublicDelivery }>(`/public/entregas/${id}`);
+export const getGaleria = () =>
+  getJSON<{ fotos: { id: string; url: string; title: string | null; createdAt: string }[] }>("/public/galeria");
 
 export const getCaptacion = () =>
   getJSON<{ captacion: PublicPaymentInfo[] }>("/public/captacion");

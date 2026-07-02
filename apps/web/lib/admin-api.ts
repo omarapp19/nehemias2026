@@ -53,26 +53,33 @@ export const apiDonaciones = (status?: string) =>
 export const apiRevisarDonacion = (id: string, action: "verify" | "reject") =>
   apiJson(`/admin/donaciones/${id}/revisar`, "POST", { action });
 export const apiCrearDonacion = (form: FormData) => apiForm("/admin/donaciones", form);
+export const apiActualizarDonacion = (id: string, form: FormData) => apiForm(`/admin/donaciones/${id}`, form, "PUT");
+export const apiEliminarDonacion = (id: string) => apiJson(`/admin/donaciones/${id}`, "DELETE", {});
 
 // — Egresos —
 export const apiEgresos = () => apiGet("/admin/egresos");
 export const apiCrearEgreso = (form: FormData) => apiForm("/admin/egresos", form);
+export const apiActualizarEgreso = (id: string, form: FormData) => apiForm(`/admin/egresos/${id}`, form, "PUT");
+export const apiEliminarEgreso = (id: string) => apiJson(`/admin/egresos/${id}`, "DELETE", {});
 
 // — Inventario —
 export const apiInsumos = () => apiGet("/admin/insumos");
 export const apiCrearInsumo = (data: unknown) => apiJson("/admin/insumos", "POST", data);
 export const apiActualizarInsumo = (id: string, data: unknown) =>
   apiJson(`/admin/insumos/${id}`, "PATCH", data);
+export const apiEliminarInsumo = (id: string) => apiJson(`/admin/insumos/${id}`, "DELETE", {});
 
 // — Frentes —
 export const apiFrentes = () => apiGet("/admin/frentes");
 export const apiCrearFrente = (data: unknown) => apiJson("/admin/frentes", "POST", data);
 export const apiActualizarFrente = (id: string, data: unknown) =>
   apiJson(`/admin/frentes/${id}`, "PUT", data);
+export const apiEliminarFrente = (id: string) => apiJson(`/admin/frentes/${id}`, "DELETE", {});
 
-// — Entregas —
-export const apiEntregas = () => apiGet("/admin/entregas");
-export const apiCrearEntrega = (form: FormData) => apiForm("/admin/entregas", form);
+// — Galería —
+export const apiGaleria = () => apiGet("/admin/galeria");
+export const apiSubirFotos = (form: FormData) => apiForm("/admin/galeria", form);
+export const apiEliminarFoto = (id: string) => apiJson(`/admin/galeria/${id}`, "DELETE", {});
 
 // — Captación —
 export const apiCaptacion = () => apiGet("/admin/captacion");

@@ -159,7 +159,7 @@ export async function listAdminDonations(status?: "pending" | "verified" | "reje
   const rows = await prisma.donation.findMany({
     where: status ? { status } : undefined,
     include: withItems,
-    orderBy: [{ status: "asc" }, { donatedAt: "desc" }],
+    orderBy: [{ status: "asc" }, { donatedAt: "desc" }, { createdAt: "desc" }],
   });
   return rows.map(toAdminDonation);
 }
@@ -168,7 +168,7 @@ export async function listAdminDonations(status?: "pending" | "verified" | "reje
 export async function listPublicVerifiedDonations(limit?: number) {
   const rows = await prisma.donation.findMany({
     where: { status: "verified" },
-    orderBy: { donatedAt: "desc" },
+    orderBy: [{ donatedAt: "desc" }, { createdAt: "desc" }],
     take: limit,
     include: withItems,
   });
@@ -179,6 +179,47 @@ export async function listPublicVerifiedDonations(limit?: number) {
 export function getVerifiedFinancialForBalance() {
   return prisma.donation.findMany({
     where: { status: "verified", type: "financial" },
-    select: { amount: true, currency: true },
+    select: { amount: true, currency: true, exchangeRate: true },
   });
+}
+
+/** Actualiza campos editables de una donación. El stock no se modifica. */
+export async function updateDonation(
+  id: string,
+  input: Partial<AdminCreateDonationInput>,
+  proofUrl?: string | null,
+) {
+  const donation = await prisma.donation.findUnique({ where: { id } });
+  if (!donation) throw new ApiError(404, "Donación no encontrada.");
+
+  const updated = await prisma.donation.update({
+    where: { id },
+    data: {
+      ...(input.donorName !== undefined && { donorName: input.donorName ?? null }),
+      ...(input.isAnonymous !== undefined && { isAnonymous: input.isAnonymous }),
+      ...(input.message !== undefined && { message: input.message ?? null }),
+      ...(input.donorContact !== undefined && { donorContact: input.donorContact ?? null }),
+      ...(input.referenceNumber !== undefined && { referenceNumber: input.referenceNumber ?? null }),
+      ...(input.method !== undefined && { method: input.method ?? null }),
+      ...(input.donatedAt !== undefined && { donatedAt: input.donatedAt }),
+      ...(input.amount !== undefined && input.amount !== null && {
+        amount: new Prisma.Decimal(input.amount),
+      }),
+      ...(input.currency !== undefined && { currency: input.currency }),
+      ...(input.exchangeRate !== undefined && input.exchangeRate !== null && {
+        exchangeRate: new Prisma.Decimal(input.exchangeRate),
+      }),
+      // Solo reemplaza el comprobante si se envía uno nuevo
+      ...(proofUrl !== undefined && { proofUrl: proofUrl ?? donation.proofUrl }),
+    },
+    include: withItems,
+  });
+  return toAdminDonation(updated);
+}
+
+/** Elimina una donación permanentemente (InKindItems se borran por cascade). */
+export async function deleteDonation(id: string) {
+  const donation = await prisma.donation.findUnique({ where: { id } });
+  if (!donation) throw new ApiError(404, "Donación no encontrada.");
+  await prisma.donation.delete({ where: { id } });
 }

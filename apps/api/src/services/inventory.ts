@@ -148,3 +148,8 @@ export async function updateSupply(id: string, input: SupplyUpdateInput) {
   await prisma.$transaction((tx) => recalcUrgent(tx, id));
   return prisma.supply.findUnique({ where: { id } });
 }
+
+export async function deleteSupply(id: string) {
+  await prisma.supply.delete({ where: { id } });
+}
+

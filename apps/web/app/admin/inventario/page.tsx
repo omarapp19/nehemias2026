@@ -9,8 +9,9 @@ import {
   BadgeStock,
   nivelStock,
   formatNumber,
+  IconTrash,
 } from "@nehemias/ui";
-import { apiInsumos, apiCrearInsumo, apiActualizarInsumo } from "@/lib/admin-api";
+import { apiInsumos, apiCrearInsumo, apiActualizarInsumo, apiEliminarInsumo } from "@/lib/admin-api";
 
 interface SupplyRow {
   id: string;
@@ -25,6 +26,7 @@ interface SupplyRow {
 export default function AdminInventarioPage() {
   const [items, setItems] = useState<SupplyRow[]>([]);
   const [estado, setEstado] = useState<"idle" | "enviando">("idle");
+  const [formKey, setFormKey] = useState(0);
 
   function cargar() {
     apiInsumos()
@@ -40,7 +42,7 @@ export default function AdminInventarioPage() {
     const data = Object.fromEntries(new FormData(form));
     try {
       await apiCrearInsumo(data);
-      form.reset();
+      setFormKey((k) => k + 1);
       cargar();
     } finally {
       setEstado("idle");
@@ -58,7 +60,7 @@ export default function AdminInventarioPage() {
 
       <Card className="p-5">
         <h2 className="mb-4 font-serif text-lg font-semibold text-ink">Agregar insumo</h2>
-        <form onSubmit={crear} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <form key={formKey} onSubmit={crear} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <Field label="Nombre" htmlFor="name" required>
             <Input id="name" name="name" required />
           </Field>
@@ -92,10 +94,13 @@ export default function AdminInventarioPage() {
   );
 }
 
+
 function SupplyRowItem({ supply, onSaved }: { supply: SupplyRow; onSaved: () => void }) {
   const [stock, setStock] = useState(String(supply.currentStock));
   const [min, setMin] = useState(String(supply.minThreshold));
   const [guardando, setGuardando] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [eliminando, setElimando] = useState(false);
 
   const nivel = nivelStock(Number(stock), Number(min));
   const cambiado =
@@ -112,6 +117,35 @@ function SupplyRowItem({ supply, onSaved }: { supply: SupplyRow; onSaved: () => 
     } finally {
       setGuardando(false);
     }
+  }
+
+  async function eliminar() {
+    setElimando(true);
+    try {
+      await apiEliminarInsumo(supply.id);
+      onSaved();
+    } finally {
+      setElimando(false);
+    }
+  }
+
+  if (confirmDelete) {
+    return (
+      <Card className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-danger-soft/10 border border-danger/20 p-4">
+        <div>
+          <p className="text-sm font-bold text-danger">¿Eliminar el insumo "{supply.name}"?</p>
+          <p className="text-xs text-ink-muted mt-0.5">Esta acción no se puede deshacer.</p>
+        </div>
+        <div className="flex gap-2 shrink-0">
+          <Button size="sm" variant="secondary" onClick={() => setConfirmDelete(false)} disabled={eliminando}>
+            Cancelar
+          </Button>
+          <Button size="sm" variant="danger" onClick={eliminar} disabled={eliminando}>
+            {eliminando ? "Eliminando..." : "Sí, eliminar"}
+          </Button>
+        </div>
+      </Card>
+    );
   }
 
   return (
@@ -146,6 +180,9 @@ function SupplyRowItem({ supply, onSaved }: { supply: SupplyRow; onSaved: () => 
         </label>
         <Button size="sm" onClick={guardar} disabled={!cambiado || guardando}>
           {guardando ? "..." : "Guardar"}
+        </Button>
+        <Button size="sm" variant="ghost" className="text-danger hover:bg-danger-soft/20 px-2" onClick={() => setConfirmDelete(true)} disabled={guardando}>
+          <IconTrash size={16} />
         </Button>
       </div>
     </Card>

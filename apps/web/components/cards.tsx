@@ -51,7 +51,12 @@ export function TransaccionCard({
     };
   }, [showModal]);
 
-  const isPdf = comprobanteUrl?.toLowerCase().endsWith(".pdf") ?? false;
+  const isDrive = comprobanteUrl?.includes("drive.google.com") ?? false;
+  const isPdf = (comprobanteUrl?.toLowerCase().endsWith(".pdf") ?? false) || isDrive;
+  const displayUrl = isDrive && comprobanteUrl ? (() => {
+    const match = comprobanteUrl.match(/\/d\/([a-zA-Z0-9-_]+)/) || comprobanteUrl.match(/[?&]id=([a-zA-Z0-9-_]+)/);
+    return match ? `https://drive.google.com/file/d/${match[1]}/preview` : comprobanteUrl;
+  })() : comprobanteUrl;
 
   return (
     <>
@@ -127,13 +132,13 @@ export function TransaccionCard({
             <div className="flex-1 overflow-auto bg-muted/10 p-4 flex items-center justify-center min-h-[300px]">
               {isPdf ? (
                 <iframe
-                  src={comprobanteUrl}
+                  src={displayUrl ?? undefined}
                   title="Comprobante / Factura PDF"
                   className="w-full h-[60vh] border-0 rounded-md shadow-sm bg-background"
                 />
               ) : (
                 <img
-                  src={comprobanteUrl}
+                  src={displayUrl ?? undefined}
                   alt="Comprobante / Factura"
                   className="max-h-[60vh] max-w-full object-contain rounded-md shadow-md border border-border/50 bg-background"
                 />
