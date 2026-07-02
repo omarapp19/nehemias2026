@@ -407,6 +407,7 @@ function EgresoForm({
     }
 
     data.set("createsStock", "false");
+    data.set("exchangeRate", rateInput);
 
     // Adjuntar factura explícitamente (evita bugs con DataTransfer en drag-and-drop)
     if (invoiceFile) data.set("invoice", invoiceFile, invoiceFile.name);
