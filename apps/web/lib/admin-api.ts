@@ -88,3 +88,7 @@ export const apiActualizarCaptacion = (id: string, data: unknown) =>
   apiJson(`/admin/captacion/${id}`, "PUT", data);
 export const apiEliminarCaptacion = (id: string) =>
   apiJson(`/admin/captacion/${id}`, "DELETE", {});
+
+// — Sincronización —
+export const apiSyncSheets = () => apiJson("/admin/sync-sheets", "POST", {});
+

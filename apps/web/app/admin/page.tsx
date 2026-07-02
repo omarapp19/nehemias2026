@@ -5,13 +5,48 @@ import Link from "next/link";
 import { Card, Stat, buttonClasses, IconClock, IconAlert, IconArrowRight, IconReceipt, IconCamera, IconHeart } from "@nehemias/ui";
 import type { CurrencyBalance, PublicSupply } from "@nehemias/core";
 import { BalancePanel } from "@/components/balance";
-import { apiDonaciones, apiGet } from "@/lib/admin-api";
+import { apiDonaciones, apiGet, apiSyncSheets } from "@/lib/admin-api";
 
 export default function AdminDashboard() {
   const [pendientes, setPendientes] = useState<number | null>(null);
   const [balances, setBalances] = useState<CurrencyBalance[]>([]);
   const [exchangeRate, setExchangeRate] = useState<number>(0);
   const [urgentes, setUrgentes] = useState<PublicSupply[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    setSyncMessage(null);
+    try {
+      const result = await apiSyncSheets();
+      setSyncMessage({
+        type: "success",
+        text: `¡Sincronización masiva exitosa! Se importaron ${result.donationsCount} donaciones y ${result.expensesCount} egresos.`,
+      });
+      // Recargar datos
+      apiDonaciones("pending")
+        .then((r) => setPendientes(r.donaciones.length))
+        .catch(() => {});
+      apiGet("/public/balances")
+        .then((r) => {
+          setBalances(r.balances);
+          setExchangeRate(r.exchangeRate);
+        })
+        .catch(() => {});
+      apiGet("/public/necesidades")
+        .then((r) => setUrgentes(r.necesidades))
+        .catch(() => {});
+    } catch (err: any) {
+      console.error(err);
+      setSyncMessage({
+        type: "error",
+        text: err?.message || "Ocurrió un error inesperado al intentar sincronizar con Google Sheets.",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   useEffect(() => {
     apiDonaciones("pending")
@@ -43,6 +78,52 @@ export default function AdminDashboard() {
           Supervisa las donaciones entrantes, el inventario de suministros de ayuda humanitaria y la transparencia financiera del proyecto.
         </p>
       </div>
+
+      {/* Sincronización Google Sheets */}
+      <Card className="p-6 bg-white border border-border/80 relative overflow-hidden shadow-sm transition-all duration-300">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div className="space-y-1">
+            <h3 className="font-serif text-lg font-bold text-ink flex items-center gap-2">
+              <span className="w-1.5 h-5 bg-emerald-600 rounded-full"></span>
+              Sincronización con Google Sheets
+            </h3>
+            <p className="text-xs text-ink-muted leading-relaxed max-w-xl">
+              Carga masivamente las donaciones y egresos directamente desde tu hoja de cálculo compartida en la nube. Reemplazará los egresos y aportes financieros actuales.
+            </p>
+          </div>
+          <button
+            onClick={handleSync}
+            disabled={isSyncing}
+            className={`${buttonClasses(isSyncing ? "secondary" : "primary", "md")} flex items-center gap-2 shadow-sm font-semibold shrink-0`}
+          >
+            {isSyncing ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Sincronizando...
+              </>
+            ) : (
+              "Sincronizar ahora"
+            )}
+          </button>
+        </div>
+        {syncMessage && (
+          <div className={`mt-4 p-4 rounded-xl border text-xs leading-relaxed flex items-start gap-2.5 animate-in fade-in slide-in-from-top-2 duration-300 ${
+            syncMessage.type === "success" 
+              ? "bg-emerald-50 border-emerald-200/80 text-emerald-900" 
+              : "bg-danger-soft/10 border-danger/15 text-danger-strong"
+          }`}>
+            {syncMessage.type === "success" ? (
+              <span className="text-emerald-600">✔</span>
+            ) : (
+              <span className="text-danger">✖</span>
+            )}
+            <div>{syncMessage.text}</div>
+          </div>
+        )}
+      </Card>
 
       {/* Tarjetas de atención */}
       <div className="grid gap-6 sm:grid-cols-2">
