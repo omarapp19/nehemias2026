@@ -21,7 +21,7 @@ RUN pnpm install --frozen-lockfile=false
 RUN pnpm --filter @nehemias/db generate
 RUN pnpm --filter @nehemias/api build
 # Despliegue de producción aislado (solo deps de runtime del API)
-RUN pnpm --filter @nehemias/api deploy --prod /app
+RUN pnpm --filter @nehemias/api deploy --prod --legacy /app
 
 # ───────────── Runner ─────────────
 FROM base AS runner
