@@ -43,6 +43,10 @@ services:
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@nehemias.org}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-cambia_esta_clave_admin}
       SEED_ADMIN_NAME: ${SEED_ADMIN_NAME:-Coordinación Nehemías}
+      # Google Sheets
+      GOOGLE_SHEET_ID: ${GOOGLE_SHEET_ID:-}
+      GOOGLE_SHEET_DONATIONS_GID: ${GOOGLE_SHEET_DONATIONS_GID:-616098203}
+      GOOGLE_SHEET_EXPENSES_GID: ${GOOGLE_SHEET_EXPENSES_GID:-0}
     volumes:
       - uploads_data:/data/uploads
     # Solo localhost: Nginx (en el host) hace de proxy. No expuesto a internet.
