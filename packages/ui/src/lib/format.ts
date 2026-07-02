@@ -56,3 +56,12 @@ export function formatDate(value: string | Date): string {
   if (Number.isNaN(d.getTime())) return "";
   return `${d.getUTCDate()} ${MESES[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
+
+export function parseVenezuelaAmount(value: string): number {
+  // 1. Quitamos los puntos que separan los decimales
+  const clearMiles = value.replace(/\./g, "");
+  // 2. Reemplazamos la coma decimal por un punto
+  const standardized = clearMiles.replace(",", ".");
+  // 3. Convertimos el numero a JavaScript y lo devolvemos
+  return parseFloat(standardized) || 0;
+  }
