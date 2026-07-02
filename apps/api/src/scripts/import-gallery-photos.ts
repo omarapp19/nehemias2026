@@ -9,7 +9,7 @@ config({ path: path.resolve(process.cwd(), "../../.env") });
 config();
 
 async function main() {
-  const sourceDir = path.resolve(process.cwd(), "../web/public/fotos");
+  const sourceDir = path.resolve(process.cwd(), "apps/web/public/FOTOS");
   const destDir = path.resolve(process.cwd(), "uploads/gallery");
 
   console.log(`📂 Origen: ${sourceDir}`);
@@ -26,13 +26,15 @@ async function main() {
 
   // 1. Limpiar fotos previas en la BD
   console.log("🧹 Limpiando registros anteriores de galería...");
-  await prisma.galleryPhoto.deleteMany({});
+  // await prisma.galleryPhoto.deleteMany({});
 
   // Leer todos los archivos
   const files = fs.readdirSync(sourceDir);
   console.log(`📂 Encontrados ${files.length} archivos en la carpeta de origen.`);
 
   let processedCount = 0;
+
+  const metadata = [];
 
   for (const file of files) {
     const ext = path.extname(file).toLowerCase();
@@ -57,10 +59,6 @@ async function main() {
     try {
       console.log(`⏳ Procesando y comprimiendo: ${file}...`);
       
-      // Comprimir la imagen lo más posible:
-      // - Límite de 1600px en el lado más largo
-      // - Convertir a webp con calidad 60 (alta compresión, excelente peso)
-      // - Quitar metadatos
       const fileBuffer = fs.readFileSync(filePath);
       const compressedBuffer = await sharp(fileBuffer)
         .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
@@ -69,27 +67,25 @@ async function main() {
 
       fs.writeFileSync(destFilePath, compressedBuffer);
 
-      // Guardar en la base de datos
-      await prisma.galleryPhoto.create({
-        data: {
-          id: uniqueId,
-          url: `gallery/${destFileName}`,
-          title: title || null,
-        },
+      metadata.push({
+        id: uniqueId,
+        url: `gallery/${destFileName}`,
+        title: title || null,
       });
 
       const origSize = fs.statSync(filePath).size;
       const compSize = compressedBuffer.length;
       const ratio = ((origSize - compSize) / origSize * 100).toFixed(1);
       
-      console.log(`✅ Guardada en BD: ${title} (${(origSize / 1024 / 1024).toFixed(2)}MB -> ${(compSize / 1024).toFixed(1)}KB, -${ratio}%)`);
+      console.log(`✅ Guardada metadata: ${title} (${(origSize / 1024 / 1024).toFixed(2)}MB -> ${(compSize / 1024).toFixed(1)}KB, -${ratio}%)`);
       processedCount++;
     } catch (e) {
       console.error(`❌ Error procesando ${file}:`, e);
     }
   }
 
-  console.log(`\n🏁 Proceso finalizado. Total imágenes importadas y comprimidas: ${processedCount}`);
+  fs.writeFileSync(path.resolve(process.cwd(), "uploads/gallery_metadata.json"), JSON.stringify(metadata, null, 2));
+  console.log(`\n🏁 Proceso finalizado. Total imágenes procesadas: ${processedCount}`);
 }
 
 main()
