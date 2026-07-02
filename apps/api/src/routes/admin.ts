@@ -38,6 +38,7 @@ import {
   updatePaymentInfo,
   deletePaymentInfo,
 } from "../services/paymentInfo.js";
+import { getSettings, updateSetting } from "../services/settings.js";
 import { syncGoogleSheets } from "../services/sheets.js";
 
 export const adminRouter = Router();
@@ -267,6 +268,25 @@ adminRouter.delete(
   asyncHandler(async (req, res) => {
     await deletePaymentInfo(req.params.id);
     res.json({ ok: true });
+  }),
+);
+
+// ---------- SYSTEM SETTINGS ----------
+adminRouter.get(
+  "/settings",
+  asyncHandler(async (_req, res) => {
+    res.json({ settings: await getSettings() });
+  }),
+);
+
+adminRouter.put(
+  "/settings",
+  asyncHandler(async (req, res) => {
+    const { contact_phone, contact_email, contact_sede } = req.body;
+    if (typeof contact_phone === "string") await updateSetting("contact_phone", contact_phone);
+    if (typeof contact_email === "string") await updateSetting("contact_email", contact_email);
+    if (typeof contact_sede === "string") await updateSetting("contact_sede", contact_sede);
+    res.json({ settings: await getSettings() });
   }),
 );
 

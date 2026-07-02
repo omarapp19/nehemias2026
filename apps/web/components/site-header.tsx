@@ -10,7 +10,7 @@ const NAV = [
 
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-40 border-b border-white/30 bg-white/50 backdrop-blur-md supports-[backdrop-filter]:bg-white/40">
+    <header className="sticky top-0 z-40 border-b border-border/80 bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/80">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3.5">
         <Logo />
 

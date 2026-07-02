@@ -6,8 +6,8 @@ import { env } from "../env.js";
 export const UPLOAD_CATEGORIES = ["proofs", "invoices", "deliveries", "gallery"] as const;
 export type UploadCategory = (typeof UPLOAD_CATEGORIES)[number];
 
-/** proofs (comprobantes de donación) son privados; el resto son públicos. */
-const PUBLIC_CATEGORIES: readonly string[] = ["invoices", "deliveries", "gallery"];
+/** proofs, invoices, deliveries y gallery son todos públicos. */
+const PUBLIC_CATEGORIES: readonly string[] = ["proofs", "invoices", "deliveries", "gallery"];
 
 export function isPublicCategory(category: string): boolean {
   return PUBLIC_CATEGORIES.includes(category);

@@ -29,7 +29,7 @@ export function Logo() {
       <BrandMark />
       <span className="flex flex-col leading-none">
         <span className="font-serif text-lg font-semibold text-ink">Nehemías</span>
-        <span className="text-[11px] font-medium uppercase tracking-wider text-ink-subtle">
+        <span className="text-[11px] font-medium uppercase tracking-wider text-ink-muted">
           Ayuda con transparencia
         </span>
       </span>

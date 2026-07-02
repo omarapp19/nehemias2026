@@ -49,3 +49,6 @@ export const getGaleria = () =>
 
 export const getCaptacion = () =>
   getJSON<{ captacion: PublicPaymentInfo[] }>("/public/captacion");
+
+export const getSettings = () =>
+  getJSON<{ settings: Record<string, string> }>("/public/settings");

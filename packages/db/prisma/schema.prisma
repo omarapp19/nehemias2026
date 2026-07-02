@@ -222,3 +222,10 @@ model GalleryPhoto {
   title     String?
   createdAt DateTime @default(now())
 }
+
+// ---------- CONFIGURACIÓN GENERAL ----------
+model SystemSetting {
+  key   String @id
+  value String
+}
+

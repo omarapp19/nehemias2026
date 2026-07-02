@@ -92,3 +92,7 @@ export const apiEliminarCaptacion = (id: string) =>
 // — Sincronización —
 export const apiSyncSheets = () => apiJson("/admin/sync-sheets", "POST", {});
 
+// — Configuración / Ajustes de Organización —
+export const apiSettings = () => apiGet("/admin/settings");
+export const apiActualizarSettings = (data: Record<string, string>) => apiJson("/admin/settings", "PUT", data);
+
