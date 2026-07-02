@@ -255,35 +255,48 @@ export async function syncGoogleSheets(
     if (expHeaderIdx !== -1) {
       const dataRows = expensesRows.slice(expHeaderIdx + 1);
       for (const row of dataRows) {
-        if (!row || row.length < 4 || !row[1]?.trim()) continue;
+        if (!row || row.length < 5 || !row[1]?.trim()) continue;
 
         // Estructura esperada (con columna # índice en 0):
-        // 0: #, 1: Fecha, 2: # Factura, 3: Descripcion / Rubro, 4: Monto en Bs, 5: Tasa BCV, 6: Soporte
+        // 0: #, 1: Fecha, 2: # Factura, 3: Descripcion / Rubro, 4: Monto en Bs, 5: Monto en $, 6: Tasa BCV, 7: Soporte
         const fechaStr = row[1]?.trim();
         const facturaStr = row[2]?.trim();
         const descripcionStr = row[3]?.trim();
-        const montoStr = row[4]?.trim();
-        const tasaStr = row[5]?.trim();
-        const soporteStr = row[6]?.trim();
+        const montoBsStr = row[4]?.trim();
+        const montoUsdStr = row[5]?.trim();
+        const tasaStr = row[6]?.trim();
+        const soporteStr = row[7]?.trim();
 
         const spentAt = parseDate(fechaStr);
         if (!spentAt) continue;
 
-        const amount = parseAmount(montoStr);
-        if (amount <= 0) continue;
+        const montoBs = parseAmount(montoBsStr);
+        const montoUsd = parseAmount(montoUsdStr);
+        const rate = parseAmount(tasaStr) || null;
 
-        const exchangeRate = parseAmount(tasaStr) || null;
+        let amount = 0;
+        let currency = Currency.VES;
+
+        if (montoUsd > 0) {
+          amount = montoUsd;
+          currency = Currency.USD;
+        } else if (montoBs > 0) {
+          amount = montoBs;
+          currency = Currency.VES;
+        } else {
+          continue; // No hay monto válido
+        }
 
         await tx.expense.create({
           data: {
             description: descripcionStr || "Egreso sin descripción",
             amount,
-            currency: Currency.VES,
+            currency,
             invoiceNumber: facturaStr || "S/N",
             invoiceUrl: soporteStr || null,
             spentAt,
             createsStock: false,
-            exchangeRate,
+            exchangeRate: currency === Currency.VES ? rate : null,
           },
         });
         expensesCount++;
