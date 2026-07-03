@@ -1,16 +1,17 @@
 import https from "node:https";
 import http from "node:http";
 import { URL } from "node:url";
-import fs from "node:fs";
-import path from "node:path";
-import { env } from "../env.js";
+import ExcelJS from "exceljs";
 import { prisma } from "@nehemias/db";
 import { Currency, DonationType, DonationStatus } from "@prisma/client";
 
+const APORTES_SHEET = "APORTES";
+const FACTURAS_SHEET = "FACTURAS";
+
 /**
- * Descarga el contenido de una URL pública de forma asíncrona, siguiendo redirecciones (3xx).
+ * Descarga un archivo binario de forma asíncrona, siguiendo redirecciones (3xx).
  */
-function downloadCSV(targetUrl: string): Promise<string> {
+function downloadBinary(targetUrl: string): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     function get(currentUrl: string) {
       try {
@@ -38,14 +39,9 @@ function downloadCSV(targetUrl: string): Promise<string> {
             return reject(new Error(`Error descargando Google Sheet: HTTP ${res.statusCode}`));
           }
 
-          let data = "";
-          res.setEncoding("utf8");
-          res.on("data", (chunk) => {
-            data += chunk;
-          });
-          res.on("end", () => {
-            resolve(data);
-          });
+          const chunks: Buffer[] = [];
+          res.on("data", (chunk) => chunks.push(chunk));
+          res.on("end", () => resolve(Buffer.concat(chunks)));
         }).on("error", (err) => {
           reject(err);
         });
@@ -59,189 +55,99 @@ function downloadCSV(targetUrl: string): Promise<string> {
 }
 
 /**
- * Parsea el CSV considerando comas como delimitadores y celdas entrecomilladas.
+ * Extrae el texto visible de una celda, sin importar si es texto plano, fórmula o rich text
+ * (las celdas con hipervínculo en Sheets suelen traer un objeto { richText: [...] }).
  */
-function parseCSV(content: string): string[][] {
-  const result: string[][] = [];
-  let row: string[] = [];
-  let cell = "";
-  let insideQuote = false;
-
-  for (let i = 0; i < content.length; i++) {
-    const char = content[i];
-    const nextChar = content[i + 1];
-
-    if (char === '"') {
-      if (insideQuote && nextChar === '"') {
-        cell += '"';
-        i++; // saltar la siguiente comilla
-      } else {
-        insideQuote = !insideQuote;
-      }
-    } else if (char === "," && !insideQuote) {
-      row.push(cell);
-      cell = "";
-    } else if ((char === "\n" || char === "\r") && !insideQuote) {
-      if (char === "\r" && nextChar === "\n") {
-        i++;
-      }
-      row.push(cell);
-      result.push(row);
-      row = [];
-      cell = "";
-    } else {
-      cell += char;
+function cellText(value: ExcelJS.CellValue): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number") return String(value);
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "object") {
+    if ("text" in value && typeof (value as any).text === "string") return (value as any).text.trim();
+    if ("richText" in value && Array.isArray((value as any).richText)) {
+      return (value as any).richText.map((r: any) => r.text ?? "").join("").trim();
     }
+    if ("result" in value) return cellText((value as any).result);
   }
+  return "";
+}
 
-  if (row.length > 0 || cell !== "") {
-    row.push(cell);
-    result.push(row);
+/** Extrae el valor numérico de una celda (soporta celdas de fórmula ya resueltas por Sheets). */
+function cellNumber(value: ExcelJS.CellValue): number {
+  if (typeof value === "number") return value;
+  if (value && typeof value === "object" && "result" in value && typeof (value as any).result === "number") {
+    return (value as any).result;
   }
+  return 0;
+}
 
-  return result;
+/** Extrae una fecha de celda (Sheets exporta fechas como objetos Date reales en XLSX). */
+function cellDate(value: ExcelJS.CellValue): Date | null {
+  if (value instanceof Date) return new Date(value.getFullYear(), value.getMonth(), value.getDate(), 12, 0, 0);
+  return null;
 }
 
 /**
- * Convierte un string con formato de número (ej. "61.619,51" o "785122.98") a float.
+ * Extrae la URL real detrás del hipervínculo de una celda (ej. el link de Drive detrás del texto
+ * visible "Ver factura"). A diferencia del CSV, el XLSX sí conserva el hipervínculo real.
  */
-function parseAmount(str: string): number {
-  if (!str) return 0;
-  let clean = str.replace(/"/g, "").trim();
-  
-  const lastComma = clean.lastIndexOf(",");
-  const lastPeriod = clean.lastIndexOf(".");
-  
-  if (lastComma > lastPeriod) {
-    // Coma es el separador decimal (formato ES/VE: 1.500,00 o 621,52)
-    clean = clean.replace(/\./g, "").replace(",", ".");
-  } else {
-    // Punto es el separador decimal (formato EN: 1,500.00 o 1425)
-    clean = clean.replace(/,/g, "");
+function cellHyperlink(cell: ExcelJS.Cell): string | null {
+  const direct = (cell as any).hyperlink;
+  if (typeof direct === "string") return direct;
+  const value = cell.value;
+  if (value && typeof value === "object" && "hyperlink" in value && typeof (value as any).hyperlink === "string") {
+    return (value as any).hyperlink;
   }
-
-  const value = parseFloat(clean);
-  return isNaN(value) ? 0 : value;
+  return null;
 }
 
-/**
- * Parsea la fecha D/M/YY o D/M/YYYY y devuelve un objeto Date a mediodía UTC.
- */
-function parseDate(fechaStr: string): Date | null {
-  if (!fechaStr) return null;
-  const dateParts = fechaStr.trim().split("/");
-  if (dateParts.length !== 3) return null;
-
-  const day = parseInt(dateParts[0] || "", 10);
-  const month = parseInt(dateParts[1] || "", 10);
-  let year = parseInt(dateParts[2] || "", 10);
-
-  if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
-
-  if (year < 100) {
-    year += 2000; // 26 -> 2026
+/** Busca, dentro de las primeras `maxRows`, la fila de cabecera y devuelve el índice de cada columna por nombre. */
+function findHeader(
+  ws: ExcelJS.Worksheet,
+  requiredColumns: string[],
+  maxRows = 5,
+): { rowIndex: number; columns: Map<string, number> } | null {
+  for (let r = 1; r <= maxRows; r++) {
+    const row = ws.getRow(r);
+    const columns = new Map<string, number>();
+    for (let c = 1; c <= row.cellCount; c++) {
+      const text = cellText(row.getCell(c).value);
+      if (text) columns.set(text, c);
+    }
+    if (requiredColumns.every((name) => columns.has(name))) {
+      return { rowIndex: r, columns };
+    }
   }
-
-  return new Date(year, month - 1, day, 12, 0, 0);
-}
-
-function loadLocalDonationsMap(): Map<string, string> {
-  const map = new Map<string, string>();
-  try {
-    let csvPath = path.resolve(env.uploadsDir, "Libro1.csv");
-    if (!fs.existsSync(csvPath)) {
-      csvPath = path.resolve(process.cwd(), "../../apps/web/public/Libro1.csv");
-    }
-    if (!fs.existsSync(csvPath)) {
-      csvPath = path.resolve(process.cwd(), "../web/public/Libro1.csv");
-    }
-
-    if (fs.existsSync(csvPath)) {
-      console.log(`[Sync] Cargando lookup de donaciones desde: ${csvPath}`);
-      const content = fs.readFileSync(csvPath, "utf-8");
-      const lines = content.split(/\r?\n/);
-      for (const line of lines) {
-        const parts = line.split(";");
-        if (parts.length >= 6) {
-          const ref = parts[1]?.replace("#", "").trim();
-          const link = parts[5]?.trim();
-          if (ref && link && link.startsWith("http")) {
-            map.set(ref.toLowerCase(), link);
-          }
-        }
-      }
-    } else {
-      console.warn("[Sync] No se encontró Libro1.csv local para lookup.");
-    }
-  } catch (e) {
-    console.error("Error cargando Libro1.csv local:", e);
-  }
-  return map;
-}
-
-function loadLocalExpensesMap(): Map<string, string> {
-  const map = new Map<string, string>();
-  try {
-    let csvPath = path.resolve(env.uploadsDir, "egresos.csv");
-    if (!fs.existsSync(csvPath)) {
-      csvPath = path.resolve(process.cwd(), "../../apps/web/public/egresos.csv");
-    }
-    if (!fs.existsSync(csvPath)) {
-      csvPath = path.resolve(process.cwd(), "../web/public/egresos.csv");
-    }
-
-    if (fs.existsSync(csvPath)) {
-      console.log(`[Sync] Cargando lookup de egresos desde: ${csvPath}`);
-      const content = fs.readFileSync(csvPath, "utf-8");
-      const lines = content.split(/\r?\n/);
-      for (const line of lines) {
-        const parts = line.split(";");
-        if (parts.length >= 6) {
-          const ref = parts[1]?.trim();
-          const link = parts[5]?.trim();
-          if (ref && link && link.startsWith("http")) {
-            map.set(ref.toLowerCase(), link);
-          }
-        }
-      }
-    } else {
-      console.warn("[Sync] No se encontró egresos.csv local para lookup.");
-    }
-  } catch (e) {
-    console.error("Error cargando egresos.csv local:", e);
-  }
-  return map;
+  return null;
 }
 
 /**
  * Sincroniza las donaciones financieras y egresos de Google Sheets hacia PostgreSQL de manera atómica.
+ * Se descarga el libro completo como XLSX (en vez de CSV por pestaña) porque XLSX conserva el
+ * hipervínculo real detrás del texto visible de cada celda (ej. "Ver factura" → link de Drive),
+ * cosa que la exportación a CSV no permite.
  */
 export async function syncGoogleSheets(
   sheetId: string,
-  donationsGid: string,
-  expensesGid: string
 ): Promise<{ donationsCount: number; expensesCount: number }> {
   if (!sheetId) throw new Error("ID de Google Sheet no configurado.");
 
   const cleanSheetId = sheetId.trim();
-  const cleanDonationsGid = donationsGid.trim();
-  const cleanExpensesGid = expensesGid.trim();
+  const xlsxUrl = `https://docs.google.com/spreadsheets/d/${cleanSheetId}/export?format=xlsx`;
 
-  const donationsUrl = `https://docs.google.com/spreadsheets/d/${cleanSheetId}/export?format=csv&gid=${cleanDonationsGid}`;
-  const expensesUrl = `https://docs.google.com/spreadsheets/d/${cleanSheetId}/export?format=csv&gid=${cleanExpensesGid}`;
+  console.log("[Sync] Descargando libro de Google Sheets (XLSX)...");
+  const buffer = await downloadBinary(xlsxUrl);
 
-  console.log(`[Sync] Descargando donaciones desde GID ${cleanDonationsGid}...`);
-  const donationsRaw = await downloadCSV(donationsUrl);
-  console.log(`[Sync] Descargando egresos desde GID ${cleanExpensesGid}...`);
-  const expensesRaw = await downloadCSV(expensesUrl);
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer as any);
 
-  const donationsRows = parseCSV(donationsRaw);
-  const expensesRows = parseCSV(expensesRaw);
+  const aportesSheet = workbook.getWorksheet(APORTES_SHEET);
+  const facturasSheet = workbook.getWorksheet(FACTURAS_SHEET);
 
-  const localDonationsMap = loadLocalDonationsMap();
-  const localExpensesMap = loadLocalExpensesMap();
+  if (!aportesSheet) throw new Error(`No se encontró la pestaña "${APORTES_SHEET}" en el Sheet.`);
+  if (!facturasSheet) throw new Error(`No se encontró la pestaña "${FACTURAS_SHEET}" en el Sheet.`);
 
-  // Mapeo e importación atómica
   return prisma.$transaction(async (tx) => {
     // 1. Limpieza de donaciones financieras y todos los egresos
     await tx.donation.deleteMany({ where: { type: DonationType.financial } });
@@ -250,57 +156,41 @@ export async function syncGoogleSheets(
     let donationsCount = 0;
     let expensesCount = 0;
 
-    // 2. Importar Donaciones
-    // La primera fila suele ser título del control (ej: CONTROL DE APORTES), la segunda fila son cabeceras.
-    // Buscamos la fila de cabeceras para empezar a importar desde la siguiente.
-    let donHeaderIdx = -1;
-    for (let i = 0; i < donationsRows.length; i++) {
-      const row = donationsRows[i];
-      if (row && row.includes("Fecha") && row.includes("Monto Original")) {
-        donHeaderIdx = i;
-        break;
-      }
-    }
+    // 2. Importar Donaciones (pestaña APORTES)
+    const donHeader = findHeader(aportesSheet, ["Fecha", "Monto Original", "# Referencia", "Soporte"]);
+    if (donHeader) {
+      const { rowIndex, columns } = donHeader;
+      const colFecha = columns.get("Fecha")!;
+      const colReferencia = columns.get("# Referencia")!;
+      const colTipoAporte = columns.get("Tipo de Aporte")!;
+      const colMonto = columns.get("Monto Original")!;
+      const colMoneda = columns.get("Moneda")!;
+      const colTasa = columns.get("Tipo de cambio (BCV)")!;
+      const colSoporte = columns.get("Soporte")!;
 
-    if (donHeaderIdx !== -1) {
-      const dataRows = donationsRows.slice(donHeaderIdx + 1);
-      for (const row of dataRows) {
-        if (!row || row.length < 5 || !row[1]?.trim()) continue;
+      for (let r = rowIndex + 1; r <= aportesSheet.rowCount; r++) {
+        const row = aportesSheet.getRow(r);
+        const refStr = cellText(row.getCell(colReferencia).value);
+        if (!refStr) continue;
 
-        // Estructura esperada (con columna # índice en 0):
-        // 0: #, 1: Fecha, 2: # Referencia, 3: Tipo de Aporte (Zelle, etc), 4: Monto Original, 5: Moneda, 6: Tipo de cambio, 8: Soporte, 9: Estatus
-        const fechaStr = row[1]?.trim();
-        const refStr = row[2]?.trim();
-        const metodoStr = row[3]?.trim();
-        const montoStr = row[4]?.trim();
-        const monedaStr = row[5]?.trim();
-        const tasaStr = row[6]?.trim();
-        const soporteStr = row[8]?.trim();
-
-        const donatedAt = parseDate(fechaStr);
+        const donatedAt = cellDate(row.getCell(colFecha).value);
         if (!donatedAt) continue;
 
-        const amount = parseAmount(montoStr);
+        const amount = cellNumber(row.getCell(colMonto).value);
         if (amount <= 0) continue;
 
-        const rate = parseAmount(tasaStr) || 1;
-        
+        const rate = cellNumber(row.getCell(colTasa).value) || 1;
+        const monedaStr = cellText(row.getCell(colMoneda).value);
+
         let currency: Currency = Currency.USD;
         let exchangeRate: number | null = null;
-
         if (monedaStr === "VES" || rate > 1) {
           currency = Currency.VES;
           exchangeRate = rate;
         }
 
-        const referenceNumber = refStr ? refStr.replace("#", "").trim() : null;
-        let finalSoporte = soporteStr || null;
-        if (finalSoporte === "Ver" || finalSoporte === "ver") {
-          const lookupKey = referenceNumber?.toLowerCase();
-          if (lookupKey && localDonationsMap.has(lookupKey)) {
-            finalSoporte = localDonationsMap.get(lookupKey)!;
-          }
-        }
+        const referenceNumber = refStr.replace("#", "").trim();
+        const finalSoporte = cellHyperlink(row.getCell(colSoporte));
 
         await tx.donation.create({
           data: {
@@ -308,7 +198,7 @@ export async function syncGoogleSheets(
             status: DonationStatus.verified,
             amount,
             currency,
-            method: metodoStr || "Otros",
+            method: cellText(row.getCell(colTipoAporte).value) || "Otros",
             referenceNumber,
             proofUrl: finalSoporte,
             donorName: "Anónimo",
@@ -321,43 +211,36 @@ export async function syncGoogleSheets(
         });
         donationsCount++;
       }
+    } else {
+      console.warn(`[Sync] No se encontró la fila de cabecera en "${APORTES_SHEET}".`);
     }
 
-    // 3. Importar Egresos
-    let expHeaderIdx = -1;
-    for (let i = 0; i < expensesRows.length; i++) {
-      const row = expensesRows[i];
-      if (row && row.includes("Fecha") && row.includes("Monto en Bs")) {
-        expHeaderIdx = i;
-        break;
-      }
-    }
+    // 3. Importar Egresos (pestaña FACTURAS)
+    const expHeader = findHeader(facturasSheet, ["Fecha", "Monto en Bs", "# Factura", "Soporte"]);
+    if (expHeader) {
+      const { rowIndex, columns } = expHeader;
+      const colFecha = columns.get("Fecha")!;
+      const colFactura = columns.get("# Factura")!;
+      const colDescripcion = columns.get("Descripcion / Rubro")!;
+      const colMontoBs = columns.get("Monto en Bs")!;
+      const colMontoUsd = columns.get("Monto en $")!;
+      const colTasa = columns.get("Tasa BCV")!;
+      const colSoporte = columns.get("Soporte")!;
 
-    if (expHeaderIdx !== -1) {
-      const dataRows = expensesRows.slice(expHeaderIdx + 1);
-      for (const row of dataRows) {
-        if (!row || row.length < 5 || !row[1]?.trim()) continue;
+      for (let r = rowIndex + 1; r <= facturasSheet.rowCount; r++) {
+        const row = facturasSheet.getRow(r);
+        const facturaStr = cellText(row.getCell(colFactura).value);
+        if (!facturaStr) continue;
 
-        // Estructura esperada (con columna # índice en 0):
-        // 0: #, 1: Fecha, 2: # Factura, 3: Descripcion / Rubro, 4: Monto en Bs, 5: Monto en $, 6: Tasa BCV, 7: Soporte
-        const fechaStr = row[1]?.trim();
-        const facturaStr = row[2]?.trim();
-        const descripcionStr = row[3]?.trim();
-        const montoBsStr = row[4]?.trim();
-        const montoUsdStr = row[5]?.trim();
-        const tasaStr = row[6]?.trim();
-        const soporteStr = row[7]?.trim();
-
-        const spentAt = parseDate(fechaStr);
+        const spentAt = cellDate(row.getCell(colFecha).value);
         if (!spentAt) continue;
 
-        const montoBs = parseAmount(montoBsStr);
-        const montoUsd = parseAmount(montoUsdStr);
-        const rate = parseAmount(tasaStr) || null;
+        const montoBs = cellNumber(row.getCell(colMontoBs).value);
+        const montoUsd = cellNumber(row.getCell(colMontoUsd).value);
+        const rate = cellNumber(row.getCell(colTasa).value) || null;
 
         let amount = 0;
         let currency: Currency = Currency.VES;
-
         if (montoUsd > 0) {
           amount = montoUsd;
           currency = Currency.USD;
@@ -368,17 +251,11 @@ export async function syncGoogleSheets(
           continue; // No hay monto válido
         }
 
-        let finalSoporte = soporteStr || null;
-        if (finalSoporte === "Ver" || finalSoporte === "ver") {
-          const lookupKey = facturaStr?.toLowerCase();
-          if (lookupKey && localExpensesMap.has(lookupKey)) {
-            finalSoporte = localExpensesMap.get(lookupKey)!;
-          }
-        }
+        const finalSoporte = cellHyperlink(row.getCell(colSoporte));
 
         await tx.expense.create({
           data: {
-            description: descripcionStr || "Egreso sin descripción",
+            description: cellText(row.getCell(colDescripcion).value) || "Egreso sin descripción",
             amount,
             currency,
             invoiceNumber: facturaStr || "S/N",
@@ -390,6 +267,8 @@ export async function syncGoogleSheets(
         });
         expensesCount++;
       }
+    } else {
+      console.warn(`[Sync] No se encontró la fila de cabecera en "${FACTURAS_SHEET}".`);
     }
 
     return { donationsCount, expensesCount };
