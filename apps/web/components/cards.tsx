@@ -130,25 +130,7 @@ export function TransaccionCard({
 
             {/* Contenido del Modal */}
             <div className="flex-1 overflow-auto bg-muted/10 p-4 flex items-center justify-center min-h-[300px]">
-              {isDrive ? (
-                <div className="text-center p-8 space-y-4 max-w-md bg-white border border-border/80 rounded-2xl shadow-sm flex flex-col items-center">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft/50 text-brand">
-                    <IconReceipt size={24} />
-                  </div>
-                  <h3 className="font-serif text-lg font-bold text-ink">Soporte en Google Drive</h3>
-                  <p className="text-sm text-ink-muted leading-relaxed">
-                    Este documento está almacenado de forma segura en Google Drive y no se puede previsualizar directamente aquí debido a políticas de seguridad.
-                  </p>
-                  <a
-                    href={comprobanteUrl ?? undefined}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-lg bg-brand text-brand-contrast hover:bg-brand-strong px-5 py-2.5 text-sm font-semibold shadow-md transition-all cursor-pointer"
-                  >
-                    Abrir en pestaña nueva
-                  </a>
-                </div>
-              ) : isPdf ? (
+              {isPdf ? (
                 <iframe
                   src={displayUrl ?? undefined}
                   title="Comprobante / Factura PDF"
