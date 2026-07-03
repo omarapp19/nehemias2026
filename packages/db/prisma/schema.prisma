@@ -61,6 +61,10 @@ model Donation {
   referenceNumber String?
   exchangeRate    Decimal? @db.Decimal(10, 4)
 
+  // referencia estable de origen externo (ej. "sheets:APORTES:<# Referencia>"),
+  // usada para upsert idempotente en la sincronización con Google Sheets. Null = registro nativo.
+  externalRef String? @unique
+
   // donante (parte privada: contacto; parte pública: nombre o "Anónimo")
   donorName    String?
   isAnonymous  Boolean @default(false)
@@ -110,6 +114,10 @@ model Expense {
   invoiceUrl    String? // factura PÚBLICA (comprobante de auditoría)
   invoiceNumber String?
   exchangeRate  Decimal? @db.Decimal(10, 4)
+
+  // referencia estable de origen externo (ej. "sheets:FACTURAS:<# Factura>"),
+  // usada para upsert idempotente en la sincronización con Google Sheets. Null = registro nativo.
+  externalRef String? @unique
 
   // si la compra es de insumos, alimenta el inventario
   createsStock Boolean  @default(false)
