@@ -25,6 +25,7 @@ const NAV = [
   { href: "/admin/inventario", label: "Inventario", icon: IconBox },
   { href: "/admin/galeria", label: "Galería", icon: IconCamera },
   { href: "/admin/captacion", label: "Métodos de pago", icon: IconShield },
+  { href: "/admin/auditoria", label: "Auditoría", icon: IconShield },
 ];
 
 interface Admin {
