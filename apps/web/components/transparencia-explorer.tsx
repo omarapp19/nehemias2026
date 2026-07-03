@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { PublicDonation, PublicExpense } from "@nehemias/core";
+import { useEffect, useState } from "react";
+import type { PublicDonation, PublicExpense, PaginationMeta } from "@nehemias/core";
 import { Button, IconArrowRight } from "@nehemias/ui";
 import { TransaccionCard } from "./cards";
 import { metodoLabel } from "@/lib/labels";
 import { fileUrl } from "@/lib/config";
+import { fetchDonacionesPublicas, fetchEgresosPublicos } from "@/lib/public-api";
 
 type Tab = "ingresos" | "egresos";
 
@@ -13,16 +14,80 @@ const PAGE_SIZE = 10;
 
 export function TransparenciaExplorer({
   donaciones,
+  donacionesMeta,
   egresos,
+  egresosMeta,
   exchangeRate,
 }: {
   donaciones: PublicDonation[];
+  donacionesMeta: PaginationMeta;
   egresos: PublicExpense[];
+  egresosMeta: PaginationMeta;
   exchangeRate: number;
 }) {
   const [tab, setTab] = useState<Tab>("ingresos");
   const [categoria, setCategoria] = useState<string>("todas");
   const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+
+  const [donacionesActuales, setDonacionesActuales] = useState(donaciones);
+  const [donacionesMetaActual, setDonacionesMetaActual] = useState(donacionesMeta);
+  const [egresosActuales, setEgresosActuales] = useState(egresos);
+  const [egresosMetaActual, setEgresosMetaActual] = useState(egresosMeta);
+
+  // Las categorías se descubren progresivamente con cada página de egresos cargada.
+  const [categorias, setCategorias] = useState<string[]>(() => {
+    const set = new Set<string>();
+    for (const e of egresos) if (e.category) set.add(e.category);
+    return ["todas", ...Array.from(set).sort()];
+  });
+
+  function agregarCategorias(lista: PublicExpense[]) {
+    setCategorias((prev) => {
+      const set = new Set(prev);
+      for (const e of lista) if (e.category) set.add(e.category);
+      return Array.from(set).sort((a, b) => (a === "todas" ? -1 : b === "todas" ? 1 : a.localeCompare(b)));
+    });
+  }
+
+  // Evita refetch en el primer render (ya llegó por props desde el servidor).
+  const [montado, setMontado] = useState(false);
+  useEffect(() => {
+    if (!montado) {
+      setMontado(true);
+      return;
+    }
+    let cancelado = false;
+    setLoading(true);
+
+    async function cargar() {
+      try {
+        if (tab === "ingresos") {
+          const { donaciones: data, meta } = await fetchDonacionesPublicas({ page, limit: PAGE_SIZE });
+          if (cancelado) return;
+          setDonacionesActuales(data);
+          setDonacionesMetaActual(meta);
+        } else {
+          const { egresos: data, meta } = await fetchEgresosPublicos({
+            page,
+            limit: PAGE_SIZE,
+            category: categoria === "todas" ? undefined : categoria,
+          });
+          if (cancelado) return;
+          setEgresosActuales(data);
+          setEgresosMetaActual(meta);
+          agregarCategorias(data);
+        }
+      } finally {
+        if (!cancelado) setLoading(false);
+      }
+    }
+    cargar();
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, categoria, page]);
 
   function cambiarTab(t: Tab) {
     setTab(t);
@@ -34,21 +99,9 @@ export function TransparenciaExplorer({
     setPage(1);
   }
 
-  const categorias = useMemo(() => {
-    const set = new Set<string>();
-    for (const e of egresos) if (e.category) set.add(e.category);
-    return ["todas", ...Array.from(set).sort()];
-  }, [egresos]);
-
-  const egresosFiltrados =
-    categoria === "todas" ? egresos : egresos.filter((e) => e.category === categoria);
-
-  const listaActual = tab === "ingresos" ? donaciones : egresosFiltrados;
-  const totalPaginas = Math.max(1, Math.ceil(listaActual.length / PAGE_SIZE));
+  const metaActual = tab === "ingresos" ? donacionesMetaActual : egresosMetaActual;
+  const totalPaginas = Math.max(1, metaActual.totalPages);
   const paginaActual = Math.min(page, totalPaginas);
-  const inicio = (paginaActual - 1) * PAGE_SIZE;
-  const donacionesPagina = tab === "ingresos" ? donaciones.slice(inicio, inicio + PAGE_SIZE) : [];
-  const egresosPagina = tab === "egresos" ? egresosFiltrados.slice(inicio, inicio + PAGE_SIZE) : [];
 
   return (
     <div>
@@ -66,7 +119,7 @@ export function TransparenciaExplorer({
             tab === "ingresos" ? "bg-background text-brand shadow-sm border border-border/50" : "text-ink-muted hover:text-ink"
           }`}
         >
-          Ingresos ({donaciones.length})
+          Ingresos ({donacionesMetaActual.total})
         </button>
         <button
           role="tab"
@@ -76,7 +129,7 @@ export function TransparenciaExplorer({
             tab === "egresos" ? "bg-background text-brand shadow-sm border border-border/50" : "text-ink-muted hover:text-ink"
           }`}
         >
-          Egresos ({egresos.length})
+          Egresos ({egresosMetaActual.total})
         </button>
       </div>
 
@@ -98,9 +151,9 @@ export function TransparenciaExplorer({
         </div>
       )}
 
-      <div className="mt-6 space-y-3">
+      <div className={`mt-6 space-y-3 transition-opacity ${loading ? "opacity-50" : ""}`}>
         {tab === "ingresos" &&
-          donacionesPagina.map((d) => (
+          donacionesActuales.map((d) => (
             <TransaccionCard
               key={d.id}
               direccion="ingreso"
@@ -116,7 +169,7 @@ export function TransparenciaExplorer({
           ))}
 
         {tab === "egresos" &&
-          egresosPagina.map((e) => (
+          egresosActuales.map((e) => (
             <TransaccionCard
               key={e.id}
               direccion="egreso"
@@ -130,22 +183,22 @@ export function TransparenciaExplorer({
             />
           ))}
 
-        {tab === "ingresos" && donaciones.length === 0 && (
+        {tab === "ingresos" && donacionesActuales.length === 0 && (
           <p className="text-ink-muted">Aún no hay ingresos verificados.</p>
         )}
-        {tab === "egresos" && egresosFiltrados.length === 0 && (
+        {tab === "egresos" && egresosActuales.length === 0 && (
           <p className="text-ink-muted">No hay egresos en esta categoría.</p>
         )}
       </div>
 
-      {listaActual.length > 0 && (
+      {metaActual.total > 0 && (
         <div className="mt-6 flex items-center justify-center gap-3 border-t border-border/50 pt-4">
           <Button
             variant="secondary"
             size="sm"
             className="gap-1.5"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={paginaActual <= 1}
+            disabled={paginaActual <= 1 || loading}
           >
             <IconArrowRight size={16} className="rotate-180" />
             Atrás
@@ -158,7 +211,7 @@ export function TransparenciaExplorer({
             size="sm"
             className="gap-1.5"
             onClick={() => setPage((p) => Math.min(totalPaginas, p + 1))}
-            disabled={paginaActual >= totalPaginas}
+            disabled={paginaActual >= totalPaginas || loading}
           >
             Adelante
             <IconArrowRight size={16} />

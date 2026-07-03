@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import type { PaginationMeta } from "@nehemias/core";
 import { Button, formatDate, IconX, IconCamera, IconArrowRight } from "@nehemias/ui";
 import { fileUrl } from "@/lib/config";
+import { fetchGaleriaPublica } from "@/lib/public-api";
 
 interface PhotoItem {
   id: string;
@@ -13,14 +15,36 @@ interface PhotoItem {
 
 const PAGE_SIZE = 12;
 
-export function GalleryView({ photos }: { photos: PhotoItem[] }) {
+export function GalleryView({ photos, meta }: { photos: PhotoItem[]; meta?: PaginationMeta }) {
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoItem | null>(null);
   const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
 
-  const totalPaginas = Math.max(1, Math.ceil(photos.length / PAGE_SIZE));
+  // Con `meta` (viene de /public/galeria paginado) la paginación se resuelve en el servidor;
+  // sin `meta` (preview en el home, lista fija) se pagina localmente sobre el array recibido.
+  const [fotosCargadas, setFotosCargadas] = useState(photos);
+  const [metaActual, setMetaActual] = useState(meta);
+
+  const totalPaginas = metaActual ? Math.max(1, metaActual.totalPages) : Math.max(1, Math.ceil(photos.length / PAGE_SIZE));
   const paginaActual = Math.min(page, totalPaginas);
-  const inicio = (paginaActual - 1) * PAGE_SIZE;
-  const fotosPagina = photos.slice(inicio, inicio + PAGE_SIZE);
+  const fotosMostradas = metaActual
+    ? fotosCargadas
+    : photos.slice((paginaActual - 1) * PAGE_SIZE, paginaActual * PAGE_SIZE);
+
+  async function irAPagina(nuevaPagina: number) {
+    const destino = Math.min(Math.max(1, nuevaPagina), totalPaginas);
+    setPage(destino);
+    if (!metaActual) return;
+
+    setLoading(true);
+    try {
+      const { fotos, meta: nuevoMeta } = await fetchGaleriaPublica({ page: destino, limit: PAGE_SIZE });
+      setFotosCargadas(fotos);
+      setMetaActual(nuevoMeta);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   if (photos.length === 0) {
     return (
@@ -38,8 +62,8 @@ export function GalleryView({ photos }: { photos: PhotoItem[] }) {
 
   return (
     <>
-      <div className="columns-1 gap-5 sm:columns-2 lg:columns-3 xl:columns-4 space-y-5">
-        {fotosPagina.map((photo) => {
+      <div className={`columns-1 gap-5 sm:columns-2 lg:columns-3 xl:columns-4 space-y-5 transition-opacity ${loading ? "opacity-50" : ""}`}>
+        {fotosMostradas.map((photo) => {
           const src = fileUrl(photo.url);
           if (!src) return null;
 
@@ -74,14 +98,14 @@ export function GalleryView({ photos }: { photos: PhotoItem[] }) {
         })}
       </div>
 
-      {photos.length > 0 && (
+      {totalPaginas > 1 && (
         <div className="mt-6 flex items-center justify-center gap-3 border-t border-border/50 pt-4">
           <Button
             variant="secondary"
             size="sm"
             className="gap-1.5"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={paginaActual <= 1}
+            onClick={() => irAPagina(paginaActual - 1)}
+            disabled={paginaActual <= 1 || loading}
           >
             <IconArrowRight size={16} className="rotate-180" />
             Atrás
@@ -93,8 +117,8 @@ export function GalleryView({ photos }: { photos: PhotoItem[] }) {
             variant="secondary"
             size="sm"
             className="gap-1.5"
-            onClick={() => setPage((p) => Math.min(totalPaginas, p + 1))}
-            disabled={paginaActual >= totalPaginas}
+            onClick={() => irAPagina(paginaActual + 1)}
+            disabled={paginaActual >= totalPaginas || loading}
           >
             Adelante
             <IconArrowRight size={16} />
