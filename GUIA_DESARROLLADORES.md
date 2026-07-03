@@ -473,68 +473,92 @@ Cosas que **ya resolvimos** y conviene que conozcan para no repetir errores:
 
 Lo que está hecho funciona de punta a punta (typecheck, lint, build y un E2E manual: declarar →
 verificar → balance sube → egreso con factura → entrega con foto → todo visible; privacidad y
-anonimato verificados). **Falta endurecer y pulir.** Prioricen de arriba hacia abajo.
+anonimato verificados). El proyecto ya está **en producción** en un VPS. Esta lista está
+reordenada por prioridad real (de mayor a menor riesgo/impacto) y con lo ya construido marcado.
+Revisada y verificada contra el código el 2026-07-03.
 
-### A. Calidad / QA (antes de producción real)
-- [ ] **QA funcional completo** de los 6 flujos en móvil real (iOS y Android, conexión lenta):
-      donar (camino A y B), verificar, egreso, inventario, frentes, entregas.
-- [ ] **Pruebas automatizadas** (hoy NO hay):
-  - Unit de `packages/core`: `computeBalances` (incluye casos USD/VES, negativos, vacíos),
-    `nivelStock`, `donorDisplay`, los DTOs (asegurar que NO incluyen campos privados).
-  - Integración de la API (supertest): el flujo `pending → verify → balance`, control de acceso a
-    `/files`, rate limiting, 422 de validación.
-  - E2E con Playwright de los caminos públicos y del panel.
-- [ ] **Revisión de accesibilidad (AA):** contraste, foco, navegación por teclado, lectores de
-      pantalla, `alt` reales en fotos.
-- [ ] **Estados de carga y error** en TODAS las vistas (hoy hay algunos `try/catch` simples y
-      “Cargando…”). Agregar skeletons y mensajes humanos consistentes.
+### ✅ Ya hecho (verificado en código, no repetir)
+- [x] **Paginación** en listados de donaciones/egresos/galería (`paginationQuerySchema` en
+      `packages/core/src/validation.ts`, usado por `admin`/`public` routers).
+- [x] **Filtros de transparencia por rango de fechas** (`dateRangeSchema` mergeado en
+      `donationQuerySchema` y `expenseQuerySchema`), además de por tipo/categoría/moneda.
+- [x] **Galería de entregas con lightbox/zoom** (`components/gallery-view.tsx`).
+- [x] **Metadatos básicos** (`title`/`description` en `apps/web/app/layout.tsx`) — falta OG
+      images y favicon (ver pendiente abajo).
+- [x] **Healthcheck de servicios** ya definido en `docker-compose.yml`.
+- [x] **Sincronización con Google Sheets** (botón manual en el panel, `POST /admin/sync-sheets`,
+      lógica en `apps/api/src/services/sheets.ts`) — funciona, pero ver nota de seguridad abajo:
+      hoy borra y recrea todas las donaciones financieras/egresos en cada sync (no hace upsert),
+      lo cual es un riesgo si se automatiza sin cambiarlo primero.
 
-### B. Validaciones (server y cliente)
-- [ ] **Validar montos** con rigor: solo positivos, máximo razonable, 2 decimales, normalizar coma
-      vs punto (en VES el usuario escribe “1.234,56”). Hoy el server valida `> 0` (zod) pero el
-      input del cliente acepta texto libre — agregar máscara/normalización antes de enviar.
-- [ ] **Validar formatos venezolanos** donde aplique: teléfono, RIF/cédula (en captación), evitar
-      inyección en campos de texto largos.
-- [ ] **Límite y formato de fechas** (no permitir fechas futuras absurdas en donaciones/egresos).
-- [ ] **Tamaño/cantidad de fotos** en entregas (hoy multer: 12 archivos, 8 MB c/u — revisar si es
-      adecuado y dar feedback claro al exceder).
-- [ ] **Mensajes de error de la API** mapeados a textos amables en el cliente (hoy parcial).
-
-### C. Frontend / UX (pulir)
-- [ ] **Reemplazar el contenido de demo** por el real: nombre exacto de la iglesia, logo,
-      colores de marca (en `packages/ui/src/theme.config.ts`), datos de captación reales
-      (pago móvil, cuentas), textos.
-- [ ] **Galería de entregas:** lightbox/zoom de fotos, lazy-loading optimizado, placeholders.
-- [ ] **Paginación / “cargar más”** en listados (hoy traen 100–200 registros de golpe).
-- [ ] **Filtros** de transparencia por **rango de fechas** (hoy solo por categoría).
-- [ ] **Microinteracciones**: contador del balance que anima al subir, transición al verificar.
-- [ ] **Compresión de imágenes en el cliente** antes de subir (mejora en conexión lenta).
-- [ ] **Favicon / OpenGraph / metadatos** para compartir en redes (hoy mínimos).
-- [ ] **Página 404/500** personalizada y `loading.tsx`/`error.tsx` por ruta.
-
-### D. Seguridad (endurecer)
-- [ ] **CSRF**: añadir token (o `SameSite=strict` + verificación de origen) a las acciones del
-      panel. Ver nota en la sección 9.
+### P1 — Seguridad crítica (antes de tocar cualquier otra cosa)
+- [ ] **CSRF**: la cookie de sesión admin usa `SameSite=lax` sin verificación de origen. Añadir
+      chequeo de header `Origin`/`Referer` en rutas mutantes de `/admin`, o migrar a
+      `SameSite=strict`. Ver nota en la sección 9.
+- [ ] **Hacer segura la sincronización con Google Sheets** antes de automatizarla: cambiar de
+      "borrar todo y recrear" a upsert por referencia estable, y evitar sync concurrente.
 - [ ] **Gestión de administradores desde el panel** (hoy solo se crea por seed/bootstrap):
-      crear/desactivar admins, **cambio y reseteo de contraseña**, política de contraseñas.
-- [ ] **Auditoría/log** de acciones admin (quién verificó/rechazó/registró qué y cuándo).
-- [ ] **Afinar rate limiting** y considerar protección anti-bot en el formulario público.
-- [ ] **Cabeceras y CSP** de Next (Content-Security-Policy) endurecidas.
+      crear/desactivar admins, cambio y reseteo de contraseña, política de contraseñas.
+- [ ] **Auditoría/log** de acciones admin (quién verificó/rechazó/registró/sincronizó qué y
+      cuándo) — especialmente importante porque el sync de Sheets borra datos.
+- [ ] **Cabeceras CSP** explícitas y endurecidas (hoy Helmet corre con la config por defecto, sin
+      `Content-Security-Policy` a medida).
 - [ ] **Rotación de `JWT_SECRET`** y expiración/refresh de sesión.
 
-### E. Infraestructura / operación
-- [ ] **Verificar el build de Docker en el VPS** (el `pnpm deploy` del Dockerfile del API + la
-      regeneración del cliente Prisma). Probarlo en limpio siguiendo DEPLOY.md.
-- [ ] **Monitoreo de errores** (Sentry o similar) en api y web.
-- [ ] **Logs centralizados** y healthchecks de `web`/`api` en compose.
-- [ ] **Probar la restauración** de un backup (no solo crearlo).
-- [ ] Migrar la config de Prisma a **`prisma.config.ts`** (quita el warning de deprecación).
-- [ ] **Almacenamiento de archivos:** hoy es disco (volumen Docker) con una abstracción en
-      `uploads/storage.ts`. Si crece, implementar el backend S3/R2 (la interfaz ya está pensada).
-- [ ] **Notificaciones por correo/WhatsApp** al donante cuando su donación se verifica (opcional
-      pero refuerza la confianza).
+### P2 — Calidad / CI (red de seguridad para todo lo demás)
+- [ ] **Pruebas automatizadas** (hoy NO hay ni un test en el repo):
+  - Unit de `packages/core`: `computeBalances` (casos USD/VES, negativos, vacíos), `nivelStock`,
+    `donorDisplay`, los DTOs (asegurar que NO incluyen campos privados).
+  - Integración de la API (supertest): flujo `pending → verify → balance`, control de acceso a
+    `/files`, rate limiting, 422 de validación.
+  - E2E con Playwright de los caminos públicos y del panel.
+- [ ] **CI en GitHub Actions**: lint + typecheck + build + tests en cada push/PR.
+- [ ] **QA funcional completo** en móvil real (iOS y Android, conexión lenta): donar (camino A y
+      B), verificar, egreso, inventario, frentes, entregas.
+- [ ] **Revisión de accesibilidad (AA):** contraste, foco, navegación por teclado, lectores de
+      pantalla, `alt` reales en fotos.
+- [ ] **Estados de carga y error** consistentes en todas las vistas (skeletons, mensajes humanos).
 
-### F. Fase 2 (preparada, NO construida — del plan original)
+### P3 — Infraestructura / operación
+- [ ] **Pipeline de despliegue (CD)**: automatizar `git pull` + rebuild en el VPS vía GitHub
+      Actions (gateado por que CI pase), en vez del proceso manual actual.
+- [ ] **Automatizar la sincronización con Google Sheets** (cron cada 15–30 min como primera
+      opción; webhook vía Google Apps Script solo si se necesita tiempo real) — depende de
+      resolver primero el punto de seguridad en P1.
+- [ ] **Respaldos fuera del servidor** (hoy los backups viven en el mismo VPS que respaldan) +
+      **probar la restauración** de un backup real (no solo crearlo).
+- [ ] **Monitoreo de errores** (Sentry o similar) en api y web + **logs centralizados**.
+- [ ] **Verificar el build de Docker en el VPS** en limpio (el `pnpm deploy` del Dockerfile del
+      API + regeneración del cliente Prisma), siguiendo DEPLOY.md paso a paso.
+- [ ] Migrar la config de Prisma a **`prisma.config.ts`** (quita el warning de deprecación).
+- [ ] **Almacenamiento de archivos:** hoy es disco (volumen Docker). Si crece, migrar a S3/R2
+      (la interfaz en `uploads/storage.ts` ya está pensada para eso).
+
+### P4 — Validaciones (server y cliente)
+- [ ] **Validar montos** con rigor: normalizar coma vs punto en el cliente antes de enviar (en
+      VES el usuario escribe “1.234,56”); el server ya valida `> 0` con zod, falta la máscara del
+      lado cliente.
+- [ ] **Validar formatos venezolanos** donde aplique: teléfono, RIF/cédula (en captación).
+- [ ] **Límite de fechas** (no permitir fechas futuras absurdas en donaciones/egresos).
+- [ ] **Revisar tamaño/cantidad de fotos** en entregas (hoy multer: 12 archivos, 8 MB c/u) y dar
+      feedback claro al exceder.
+- [ ] **Mensajes de error de la API** mapeados a textos amables en el cliente (hoy parcial).
+
+### P5 — Frontend / UX (pulir)
+- [ ] **Favicon y OpenGraph images** completos para compartir en redes (hoy solo hay
+      `title`/`description`).
+- [ ] **Página 404/500 personalizada** y `loading.tsx`/`error.tsx` por ruta (hoy no existen).
+- [ ] **Compresión de imágenes en el cliente** antes de subir (mejora en conexión lenta).
+- [ ] **Microinteracciones**: contador del balance que anima al subir, transición al verificar.
+- [ ] **Revisar que quede contenido 100% real** (no de demo): nombre exacto de la iglesia, logo,
+      datos de captación reales (pago móvil, cuentas), textos — los colores de marca en
+      `packages/ui/src/theme.config.ts` ya parecen personalizados, confirmar con el cliente.
+
+### P6 — Notificaciones (mejora de confianza, opcional)
+- [ ] **Notificaciones por correo/WhatsApp** al donante cuando su donación se verifica.
+- [ ] **Afinar rate limiting** y considerar protección anti-bot en el formulario público.
+
+### P7 — Fase 2 (preparada, NO construida — del plan original)
 - [ ] **Módulo de beneficiarios individuales** (personas/familias con necesidades críticas en
       refugios), respetando privacidad (cédulas/datos nunca públicos).
 - [ ] **Reportes exportables** (PDF/Excel de transparencia por período).
