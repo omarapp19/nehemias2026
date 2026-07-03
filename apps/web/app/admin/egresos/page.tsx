@@ -233,7 +233,7 @@ export default function AdminEgresosPage() {
                   </div>
                   <h3 className="font-serif text-lg font-bold text-ink">Factura en Google Drive</h3>
                   <p className="text-sm text-ink-muted leading-relaxed">
-                    Este documento está almacenado de forma segura en Google Drive y no se puede previsualizar directamente aquí debido a políticas de seguridad.
+                    Este documento está almacenado en Google Drive. Debido a las restricciones de seguridad del navegador y de Google Drive (como la protección contra hotlinking y el bloqueo de marcos iFrame), no se puede previsualizar directamente aquí.
                   </p>
                   <a
                     href={modalUrl}
