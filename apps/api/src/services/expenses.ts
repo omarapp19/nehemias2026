@@ -1,5 +1,13 @@
 import { prisma, Prisma } from "@nehemias/db";
-import { toPublicExpense, type ExpenseInput } from "@nehemias/core";
+import {
+  toPublicExpense,
+  buildMeta,
+  type ExpenseInput,
+  type ExpenseQuery,
+  type AdminExpenseQuery,
+  type Paginated,
+  type PublicExpense,
+} from "@nehemias/core";
 import { ApiError } from "../http.js";
 import { applyStockIn } from "./inventory.js";
 
@@ -43,12 +51,38 @@ export async function createExpense(
   });
 }
 
-export async function listPublicExpenses(limit?: number) {
-  const rows = await prisma.expense.findMany({
-    orderBy: { spentAt: "desc" },
-    take: limit,
-  });
-  return rows.map(toPublicExpense);
+function expenseDateRangeWhere(query: { from?: Date; to?: Date }): Prisma.ExpenseWhereInput {
+  if (!query.from && !query.to) return {};
+  return {
+    spentAt: {
+      ...(query.from && { gte: query.from }),
+      ...(query.to && { lte: query.to }),
+    },
+  };
+}
+
+/** Lista paginada de egresos, filtrable por categoría, proveedor, moneda y rango de fechas. */
+export async function listPublicExpenses(
+  query: AdminExpenseQuery | ExpenseQuery,
+): Promise<Paginated<PublicExpense>> {
+  const where: Prisma.ExpenseWhereInput = {
+    ...(query.category && { category: query.category }),
+    ...(query.currency && { currency: query.currency }),
+    ...("supplier" in query && query.supplier && { supplier: query.supplier }),
+    ...expenseDateRangeWhere(query),
+  };
+
+  const [rows, total] = await Promise.all([
+    prisma.expense.findMany({
+      where,
+      orderBy: { spentAt: "desc" },
+      skip: (query.page - 1) * query.limit,
+      take: query.limit,
+    }),
+    prisma.expense.count({ where }),
+  ]);
+
+  return { data: rows.map(toPublicExpense), meta: buildMeta(query.page, query.limit, total) };
 }
 
 export function getExpensesForBalance() {
