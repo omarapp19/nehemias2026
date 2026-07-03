@@ -30,7 +30,7 @@ export function Logo() {
       <span className="flex flex-col leading-none">
         <span className="font-serif text-lg font-semibold text-ink">Nehemías</span>
         <span className="text-[11px] font-medium uppercase tracking-wider text-ink-muted">
-          Ayuda con transparencia
+          AYUDA A VENEZUELA CON TRANSPARENCIA
         </span>
       </span>
     </Link>

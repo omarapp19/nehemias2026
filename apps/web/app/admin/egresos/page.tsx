@@ -35,6 +35,14 @@ export default function AdminEgresosPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
+  const lowerModalUrl = modalUrl?.toLowerCase() ?? "";
+  const isDrive = lowerModalUrl.includes("drive.google.com") || lowerModalUrl.endsWith("/files/ver") || lowerModalUrl === "ver";
+  const googleDriveFolder = process.env.NEXT_PUBLIC_GOOGLE_DRIVE_FOLDER || "https://drive.google.com";
+  const targetUrl = (isDrive && (lowerModalUrl.endsWith("/files/ver") || lowerModalUrl === "ver"))
+    ? googleDriveFolder
+    : (modalUrl ?? googleDriveFolder);
+
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -263,17 +271,17 @@ export default function AdminEgresosPage() {
 
             {/* Contenido del Modal */}
             <div className="flex-1 overflow-auto bg-muted/10 p-4 flex items-center justify-center min-h-[300px]">
-              {modalUrl.includes("drive.google.com") ? (
+              {isDrive ? (
                 <div className="text-center p-8 space-y-4 max-w-md bg-white border border-border/80 rounded-2xl shadow-sm flex flex-col items-center">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft/50 text-brand">
                     <IconReceipt size={24} />
                   </div>
                   <h3 className="font-serif text-lg font-bold text-ink">Factura en Google Drive</h3>
                   <p className="text-sm text-ink-muted leading-relaxed">
-                    Este documento está almacenado de forma segura en Google Drive y no se puede previsualizar directamente aquí debido a políticas de seguridad.
+                    Este documento está almacenado en Google Drive. Debido a las restricciones de seguridad del navegador y de Google Drive, no se puede previsualizar directamente aquí.
                   </p>
                   <a
-                    href={modalUrl}
+                    href={targetUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 rounded-lg bg-brand text-brand-contrast hover:bg-brand-strong px-5 py-2.5 text-sm font-semibold shadow-md transition-all cursor-pointer"
@@ -299,7 +307,7 @@ export default function AdminEgresosPage() {
             {/* Pie del Modal */}
             <div className="flex items-center justify-between gap-3 p-4 border-t border-border bg-surface-sunken/30">
               <a
-                href={modalUrl}
+                href={targetUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 rounded-md bg-background text-ink border border-border-strong hover:bg-surface px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors"
