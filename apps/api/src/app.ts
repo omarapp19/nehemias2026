@@ -18,6 +18,21 @@ export function createApp() {
     helmet({
       // Permite que el sitio web (otro origen) incruste las imágenes servidas aquí.
       crossOriginResourcePolicy: { policy: "cross-origin" },
+      // Esta API solo sirve JSON y archivos estáticos (/files); nunca HTML ni scripts propios.
+      // CSP a medida: bloquea todo por defecto, sin necesidad de listas de origenes externos.
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+          baseUri: ["'none'"],
+          formAction: ["'none'"],
+          objectSrc: ["'none'"],
+          scriptSrc: ["'none'"],
+          styleSrc: ["'none'"],
+        },
+      },
+      // No hay documentos que renderizar en esta API; evita que se abra dentro de un frame.
+      frameguard: { action: "deny" },
     }),
   );
   app.use(
