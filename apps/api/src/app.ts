@@ -22,7 +22,7 @@ export function createApp() {
   );
   app.use(
     cors({
-      origin: env.webOrigin.split(",").map((o) => o.trim()),
+      origin: env.webOrigins,
       credentials: true,
     }),
   );
