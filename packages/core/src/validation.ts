@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { paginationQuerySchema } from "./pagination.js";
 
 /**
  * Esquemas de validación compartidos (zod). Mensajes en español y humanos.
@@ -152,6 +153,46 @@ export const deliverySchema = z.object({
   items: z.array(itemLineSchema).min(1, "Agrega al menos un insumo entregado."),
 });
 export type DeliveryInput = z.infer<typeof deliverySchema>;
+
+// — Filtros de listados (query params) —
+const dateRangeSchema = z.object({
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+});
+
+export const donationQuerySchema = paginationQuerySchema.merge(dateRangeSchema).merge(
+  z.object({
+    type: donationTypeEnum.optional(),
+    method: z.string().min(1).optional(),
+    currency: currencyEnum.optional(),
+  }),
+);
+export type DonationQuery = z.infer<typeof donationQuerySchema>;
+
+export const adminDonationQuerySchema = donationQuerySchema.merge(
+  z.object({
+    status: z.enum(["pending", "verified", "rejected"]).optional(),
+  }),
+);
+export type AdminDonationQuery = z.infer<typeof adminDonationQuerySchema>;
+
+export const expenseQuerySchema = paginationQuerySchema.merge(dateRangeSchema).merge(
+  z.object({
+    category: z.string().min(1).optional(),
+    currency: currencyEnum.optional(),
+  }),
+);
+export type ExpenseQuery = z.infer<typeof expenseQuerySchema>;
+
+export const adminExpenseQuerySchema = expenseQuerySchema.merge(
+  z.object({
+    supplier: z.string().min(1).optional(),
+  }),
+);
+export type AdminExpenseQuery = z.infer<typeof adminExpenseQuerySchema>;
+
+export const galleryQuerySchema = paginationQuerySchema;
+export type GalleryQuery = z.infer<typeof galleryQuerySchema>;
 
 // — Datos de captación —
 export const paymentInfoSchema = z.object({
