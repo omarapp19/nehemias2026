@@ -114,3 +114,21 @@ export const apiSyncSheets = () => apiJson("/admin/sync-sheets", "POST", {});
 export const apiSettings = () => apiGet("/admin/settings");
 export const apiActualizarSettings = (data: Record<string, string>) => apiJson("/admin/settings", "PUT", data);
 
+// — Administradores —
+export interface AdminRow {
+  id: string;
+  email: string;
+  name: string;
+  role: "admin" | "coordinator";
+  isActive: boolean;
+  createdAt: string;
+}
+export const apiAdmins = () => apiGet("/admin/admins");
+export const apiCrearAdmin = (data: { email: string; name: string; role: string; password: string }) =>
+  apiJson("/admin/admins", "POST", data);
+export const apiDesactivarAdmin = (id: string) => apiJson(`/admin/admins/${id}/deactivate`, "PATCH", {});
+export const apiReactivarAdmin = (id: string) => apiJson(`/admin/admins/${id}/reactivate`, "PATCH", {});
+export const apiResetearPassword = (id: string, password: string) =>
+  apiJson(`/admin/admins/${id}/reset-password`, "POST", { password });
+export const apiCambiarMiPassword = (currentPassword: string, newPassword: string) =>
+  apiJson("/auth/change-password", "POST", { currentPassword, newPassword });
