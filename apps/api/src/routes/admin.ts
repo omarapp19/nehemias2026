@@ -310,14 +310,12 @@ adminRouter.post(
   "/sync-sheets",
   asyncHandler(async (_req, res) => {
     const sheetId = process.env.GOOGLE_SHEET_ID?.trim();
-    const donationsGid = process.env.GOOGLE_SHEET_DONATIONS_GID?.trim() ?? "616098203";
-    const expensesGid = process.env.GOOGLE_SHEET_EXPENSES_GID?.trim() ?? "941673960";
 
     if (!sheetId) {
       throw new ApiError(400, "GOOGLE_SHEET_ID no está configurado en las variables de entorno.");
     }
 
-    const result = await syncGoogleSheets(sheetId, donationsGid, expensesGid);
+    const result = await syncGoogleSheets(sheetId);
     res.json({
       success: true,
       message: "Sincronización exitosa con Google Sheets.",
