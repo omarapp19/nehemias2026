@@ -308,14 +308,14 @@ adminRouter.put(
 // ---------- SINCRONIZACIÓN GOOGLE SHEETS ----------
 adminRouter.post(
   "/sync-sheets",
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
     const sheetId = process.env.GOOGLE_SHEET_ID?.trim();
 
     if (!sheetId) {
       throw new ApiError(400, "GOOGLE_SHEET_ID no está configurado en las variables de entorno.");
     }
 
-    const result = await syncGoogleSheets(sheetId);
+    const result = await syncGoogleSheets(sheetId, adminId(req));
     res.json({
       success: true,
       message: "Sincronización exitosa con Google Sheets.",

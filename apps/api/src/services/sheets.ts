@@ -4,6 +4,7 @@ import { URL } from "node:url";
 import ExcelJS from "exceljs";
 import { prisma } from "@nehemias/db";
 import { Currency, DonationType, DonationStatus } from "@prisma/client";
+import { recordAudit } from "../audit/auditLog.js";
 
 const APORTES_SHEET = "APORTES";
 const FACTURAS_SHEET = "FACTURAS";
@@ -130,6 +131,7 @@ function findHeader(
  */
 export async function syncGoogleSheets(
   sheetId: string,
+  adminId: string | null,
 ): Promise<{ donationsCount: number; expensesCount: number }> {
   if (!sheetId) throw new Error("ID de Google Sheet no configurado.");
 
@@ -149,7 +151,10 @@ export async function syncGoogleSheets(
   if (!facturasSheet) throw new Error(`No se encontró la pestaña "${FACTURAS_SHEET}" en el Sheet.`);
 
   return prisma.$transaction(async (tx) => {
-    // 1. Limpieza de donaciones financieras y todos los egresos
+    // 1. Snapshot de lo que se va a borrar, para poder reconciliar manualmente si el sync sale mal.
+    const deletedDonations = await tx.donation.findMany({ where: { type: DonationType.financial } });
+    const deletedExpenses = await tx.expense.findMany();
+
     await tx.donation.deleteMany({ where: { type: DonationType.financial } });
     await tx.expense.deleteMany();
 
@@ -270,6 +275,31 @@ export async function syncGoogleSheets(
     } else {
       console.warn(`[Sync] No se encontró la fila de cabecera en "${FACTURAS_SHEET}".`);
     }
+
+    await recordAudit(tx, {
+      actorId: adminId,
+      actorRole: null,
+      action: "SYNC",
+      entityType: "Donation",
+      entityId: null,
+      payload: {
+        deletedCount: deletedDonations.length,
+        insertedCount: donationsCount,
+        deletedSnapshot: deletedDonations,
+      },
+    });
+    await recordAudit(tx, {
+      actorId: adminId,
+      actorRole: null,
+      action: "SYNC",
+      entityType: "Expense",
+      entityId: null,
+      payload: {
+        deletedCount: deletedExpenses.length,
+        insertedCount: expensesCount,
+        deletedSnapshot: deletedExpenses,
+      },
+    });
 
     return { donationsCount, expensesCount };
   });
