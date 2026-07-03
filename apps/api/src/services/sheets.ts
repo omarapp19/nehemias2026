@@ -59,9 +59,10 @@ function downloadCSV(targetUrl: string): Promise<string> {
 }
 
 /**
- * Parsea el CSV considerando comas como delimitadores y celdas entrecomilladas.
+ * Parsea CSV respetando celdas entrecomilladas (incluyendo saltos de línea dentro de comillas).
+ * El delimitador es configurable porque el CSV exportado de Sheets usa "," y los lookup locales usan ";".
  */
-function parseCSV(content: string): string[][] {
+function parseCSV(content: string, delimiter = ","): string[][] {
   const result: string[][] = [];
   let row: string[] = [];
   let cell = "";
@@ -78,7 +79,7 @@ function parseCSV(content: string): string[][] {
       } else {
         insideQuote = !insideQuote;
       }
-    } else if (char === "," && !insideQuote) {
+    } else if (char === delimiter && !insideQuote) {
       row.push(cell);
       cell = "";
     } else if ((char === "\n" || char === "\r") && !insideQuote) {
@@ -159,9 +160,8 @@ function loadLocalDonationsMap(): Map<string, string> {
     if (fs.existsSync(csvPath)) {
       console.log(`[Sync] Cargando lookup de donaciones desde: ${csvPath}`);
       const content = fs.readFileSync(csvPath, "utf-8");
-      const lines = content.split(/\r?\n/);
-      for (const line of lines) {
-        const parts = line.split(";");
+      const rows = parseCSV(content, ";");
+      for (const parts of rows) {
         if (parts.length >= 6) {
           const ref = parts[1]?.replace("#", "").trim();
           const link = parts[5]?.trim();
@@ -193,9 +193,8 @@ function loadLocalExpensesMap(): Map<string, string> {
     if (fs.existsSync(csvPath)) {
       console.log(`[Sync] Cargando lookup de egresos desde: ${csvPath}`);
       const content = fs.readFileSync(csvPath, "utf-8");
-      const lines = content.split(/\r?\n/);
-      for (const line of lines) {
-        const parts = line.split(";");
+      const rows = parseCSV(content, ";");
+      for (const parts of rows) {
         if (parts.length >= 6) {
           const ref = parts[1]?.trim();
           const link = parts[5]?.trim();
@@ -295,11 +294,11 @@ export async function syncGoogleSheets(
 
         const referenceNumber = refStr ? refStr.replace("#", "").trim() : null;
         let finalSoporte = soporteStr || null;
-        if (finalSoporte === "Ver" || finalSoporte === "ver") {
+        if (finalSoporte && !/^https?:\/\//i.test(finalSoporte)) {
+          // La celda de Sheets solo trae el texto visible del hipervínculo (ej. "Ver", "Ver factura");
+          // buscamos la URL real de Drive en el CSV local exportado con los links.
           const lookupKey = referenceNumber?.toLowerCase();
-          if (lookupKey && localDonationsMap.has(lookupKey)) {
-            finalSoporte = localDonationsMap.get(lookupKey)!;
-          }
+          finalSoporte = (lookupKey && localDonationsMap.get(lookupKey)) || null;
         }
 
         await tx.donation.create({
@@ -369,11 +368,11 @@ export async function syncGoogleSheets(
         }
 
         let finalSoporte = soporteStr || null;
-        if (finalSoporte === "Ver" || finalSoporte === "ver") {
+        if (finalSoporte && !/^https?:\/\//i.test(finalSoporte)) {
+          // La celda de Sheets solo trae el texto visible del hipervínculo (ej. "Ver", "Ver factura");
+          // buscamos la URL real de Drive en el CSV local exportado con los links.
           const lookupKey = facturaStr?.toLowerCase();
-          if (lookupKey && localExpensesMap.has(lookupKey)) {
-            finalSoporte = localExpensesMap.get(lookupKey)!;
-          }
+          finalSoporte = (lookupKey && localExpensesMap.get(lookupKey)) || null;
         }
 
         await tx.expense.create({

@@ -74,7 +74,7 @@ export default async function DonarPage() {
                 <p className="mt-3 text-base font-bold text-ink font-mono">{settings.contact_phone}</p>
               </div>
               <Link
-                href="https://wa.me/584125550123"
+                href={`https://wa.me/${settings.contact_phone.replace(/\D/g, "")}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={buttonClasses("secondary", "sm", "mt-4 w-full text-center")}
@@ -89,7 +89,7 @@ export default async function DonarPage() {
                 <p className="mt-3 text-base font-bold text-ink truncate">{settings.contact_email}</p>
               </div>
               <Link
-                href="mailto:contacto@nehemias.org"
+                href={`mailto:${settings.contact_email}`}
                 className={buttonClasses("secondary", "sm", "mt-4 w-full text-center")}
               >
                 Enviar correo

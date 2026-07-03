@@ -311,7 +311,7 @@ adminRouter.post(
   asyncHandler(async (_req, res) => {
     const sheetId = process.env.GOOGLE_SHEET_ID?.trim();
     const donationsGid = process.env.GOOGLE_SHEET_DONATIONS_GID?.trim() ?? "616098203";
-    const expensesGid = process.env.GOOGLE_SHEET_EXPENSES_GID?.trim() ?? "0";
+    const expensesGid = process.env.GOOGLE_SHEET_EXPENSES_GID?.trim() ?? "941673960";
 
     if (!sheetId) {
       throw new ApiError(400, "GOOGLE_SHEET_ID no está configurado en las variables de entorno.");
