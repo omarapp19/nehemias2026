@@ -51,7 +51,7 @@ export default async function HomePage() {
               </h1>
               <p className="mt-6 text-base sm:text-lg leading-relaxed text-ink-muted">
                 Tras los terremotos en Venezuela, asistimos a las comunidades olvidadas de La Guaira,
-                Carayaca, Guarenas y Maracaibo. Aquí puedes auditar a dónde va cada bolívar y
+                Carayaca y Guarenas. Aquí puedes auditar a dónde va cada bolívar y
                 cada insumo, respaldado con facturas y fotos.
               </p>
               <div className="mt-10 flex flex-wrap gap-4 w-full sm:w-auto">
