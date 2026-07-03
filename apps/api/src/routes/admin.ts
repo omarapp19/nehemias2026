@@ -11,6 +11,7 @@ import {
   adminDonationQuerySchema,
   adminExpenseQuerySchema,
   galleryQuerySchema,
+  auditLogQuerySchema,
   buildMeta,
 } from "@nehemias/core";
 import { prisma } from "@nehemias/db";
@@ -44,6 +45,8 @@ import {
 } from "../services/paymentInfo.js";
 import { getSettings, updateSetting } from "../services/settings.js";
 import { syncGoogleSheets } from "../services/sheets.js";
+import { listAuditLogs } from "../services/auditLog.js";
+import { recordAudit } from "../audit/auditLog.js";
 
 export const adminRouter = Router();
 
@@ -173,7 +176,7 @@ adminRouter.post(
   "/insumos",
   asyncHandler(async (req, res) => {
     const input = supplySchema.parse(req.body);
-    res.status(201).json({ insumo: await createSupply(input) });
+    res.status(201).json({ insumo: await createSupply(input, adminId(req)) });
   }),
 );
 
@@ -181,14 +184,14 @@ adminRouter.patch(
   "/insumos/:id",
   asyncHandler(async (req, res) => {
     const input = supplyUpdateSchema.parse(req.body);
-    res.json({ insumo: await updateSupply(req.params.id, input) });
+    res.json({ insumo: await updateSupply(req.params.id, input, adminId(req)) });
   }),
 );
 
 adminRouter.delete(
   "/insumos/:id",
   asyncHandler(async (req, res) => {
-    await deleteSupply(req.params.id);
+    await deleteSupply(req.params.id, adminId(req));
     res.json({ ok: true });
   }),
 );
@@ -216,21 +219,31 @@ adminRouter.post(
   upload.array("photos", 24),
   asyncHandler(async (req, res) => {
     const files = (req.files as Express.Multer.File[] | undefined) ?? [];
-    const created = [];
-    for (const f of files) {
-      const url = await processAndStore("gallery", f);
-      const title = f.originalname
-        .replace(/\.[^/.]+$/, "")
-        .replace(/^#/, "")
-        .trim();
-      const photo = await prisma.galleryPhoto.create({
-        data: {
-          url,
-          title: title || null,
-        },
-      });
-      created.push(photo);
-    }
+    const created: Awaited<ReturnType<typeof prisma.galleryPhoto.create>>[] = [];
+    await prisma.$transaction(async (tx) => {
+      for (const f of files) {
+        const url = await processAndStore("gallery", f);
+        const title = f.originalname
+          .replace(/\.[^/.]+$/, "")
+          .replace(/^#/, "")
+          .trim();
+        const photo = await tx.galleryPhoto.create({
+          data: {
+            url,
+            title: title || null,
+          },
+        });
+        await recordAudit(tx, {
+          actorId: adminId(req),
+          actorRole: null,
+          action: "CREATE",
+          entityType: "GalleryPhoto",
+          entityId: photo.id,
+          payload: null,
+        });
+        created.push(photo);
+      }
+    });
     res.status(201).json({ fotos: created });
   }),
 );
@@ -248,8 +261,16 @@ adminRouter.delete(
       fs.unlinkSync(absPath);
     }
 
-    await prisma.galleryPhoto.delete({
-      where: { id: req.params.id },
+    await prisma.$transaction(async (tx) => {
+      await tx.galleryPhoto.delete({ where: { id: req.params.id } });
+      await recordAudit(tx, {
+        actorId: adminId(req),
+        actorRole: null,
+        action: "DELETE",
+        entityType: "GalleryPhoto",
+        entityId: req.params.id,
+        payload: { snapshot: photo },
+      });
     });
     res.json({ ok: true });
   }),
@@ -266,7 +287,7 @@ adminRouter.post(
   "/captacion",
   asyncHandler(async (req, res) => {
     const input = paymentInfoSchema.parse(req.body);
-    res.status(201).json({ captacion: await createPaymentInfo(input) });
+    res.status(201).json({ captacion: await createPaymentInfo(input, adminId(req)) });
   }),
 );
 
@@ -274,14 +295,14 @@ adminRouter.put(
   "/captacion/:id",
   asyncHandler(async (req, res) => {
     const input = paymentInfoSchema.parse(req.body);
-    res.json({ captacion: await updatePaymentInfo(req.params.id, input) });
+    res.json({ captacion: await updatePaymentInfo(req.params.id, input, adminId(req)) });
   }),
 );
 
 adminRouter.delete(
   "/captacion/:id",
   asyncHandler(async (req, res) => {
-    await deletePaymentInfo(req.params.id);
+    await deletePaymentInfo(req.params.id, adminId(req));
     res.json({ ok: true });
   }),
 );
@@ -298,9 +319,9 @@ adminRouter.put(
   "/settings",
   asyncHandler(async (req, res) => {
     const { contact_phone, contact_email, contact_sede } = req.body;
-    if (typeof contact_phone === "string") await updateSetting("contact_phone", contact_phone);
-    if (typeof contact_email === "string") await updateSetting("contact_email", contact_email);
-    if (typeof contact_sede === "string") await updateSetting("contact_sede", contact_sede);
+    if (typeof contact_phone === "string") await updateSetting("contact_phone", contact_phone, adminId(req));
+    if (typeof contact_email === "string") await updateSetting("contact_email", contact_email, adminId(req));
+    if (typeof contact_sede === "string") await updateSetting("contact_sede", contact_sede, adminId(req));
     res.json({ settings: await getSettings() });
   }),
 );
@@ -321,5 +342,15 @@ adminRouter.post(
       message: "Sincronización exitosa con Google Sheets.",
       ...result,
     });
+  }),
+);
+
+// ---------- AUDITORÍA ----------
+adminRouter.get(
+  "/auditoria",
+  asyncHandler(async (req, res) => {
+    const { page, limit, entityType, from, to } = auditLogQuerySchema.parse(req.query);
+    const { data, meta } = await listAuditLogs({ entityType, from, to }, { page, limit });
+    res.json({ entradas: data, meta });
   }),
 );
