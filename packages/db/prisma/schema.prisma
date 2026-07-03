@@ -84,6 +84,8 @@ model Donation {
   @@index([status])
   @@index([type])
   @@index([donatedAt])
+  @@index([method])
+  @@index([currency])
 }
 
 // líneas de una donación en especie
@@ -116,6 +118,9 @@ model Expense {
   createdAt    DateTime @default(now())
 
   @@index([spentAt])
+  @@index([category])
+  @@index([supplier])
+  @@index([currency])
 }
 
 // ---------- INVENTARIO ----------

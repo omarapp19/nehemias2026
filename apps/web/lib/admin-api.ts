@@ -1,4 +1,5 @@
 import { PUBLIC_API_BASE } from "./config";
+import { buildQueryString } from "./api";
 
 /** Cliente del API para el panel admin (envía la cookie de sesión). */
 
@@ -48,8 +49,16 @@ export const apiLogin = (email: string, password: string) =>
 export const apiLogout = () => apiJson("/auth/logout", "POST", {});
 
 // — Donaciones —
-export const apiDonaciones = (status?: string) =>
-  apiGet(`/admin/donaciones${status ? `?status=${status}` : ""}`);
+export const apiDonaciones = (params?: {
+  status?: string;
+  page?: number;
+  limit?: number;
+  type?: string;
+  method?: string;
+  currency?: string;
+  from?: string;
+  to?: string;
+}) => apiGet(`/admin/donaciones${buildQueryString(params)}`);
 export const apiRevisarDonacion = (id: string, action: "verify" | "reject") =>
   apiJson(`/admin/donaciones/${id}/revisar`, "POST", { action });
 export const apiCrearDonacion = (form: FormData) => apiForm("/admin/donaciones", form);
@@ -57,7 +66,15 @@ export const apiActualizarDonacion = (id: string, form: FormData) => apiForm(`/a
 export const apiEliminarDonacion = (id: string) => apiJson(`/admin/donaciones/${id}`, "DELETE", {});
 
 // — Egresos —
-export const apiEgresos = () => apiGet("/admin/egresos");
+export const apiEgresos = (params?: {
+  page?: number;
+  limit?: number;
+  category?: string;
+  supplier?: string;
+  currency?: string;
+  from?: string;
+  to?: string;
+}) => apiGet(`/admin/egresos${buildQueryString(params)}`);
 export const apiCrearEgreso = (form: FormData) => apiForm("/admin/egresos", form);
 export const apiActualizarEgreso = (id: string, form: FormData) => apiForm(`/admin/egresos/${id}`, form, "PUT");
 export const apiEliminarEgreso = (id: string) => apiJson(`/admin/egresos/${id}`, "DELETE", {});
@@ -77,7 +94,8 @@ export const apiActualizarFrente = (id: string, data: unknown) =>
 export const apiEliminarFrente = (id: string) => apiJson(`/admin/frentes/${id}`, "DELETE", {});
 
 // — Galería —
-export const apiGaleria = () => apiGet("/admin/galeria");
+export const apiGaleria = (params?: { page?: number; limit?: number }) =>
+  apiGet(`/admin/galeria${buildQueryString(params)}`);
 export const apiSubirFotos = (form: FormData) => apiForm("/admin/galeria", form);
 export const apiEliminarFoto = (id: string) => apiJson(`/admin/galeria/${id}`, "DELETE", {});
 

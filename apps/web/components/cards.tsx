@@ -67,13 +67,13 @@ export function TransaccionCard({
   return (
     <>
       <Card
-        className={`flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between border-l-4 transition-all duration-200 hover:translate-x-0.5 ${
+        className={`flex sm:min-h-[121px] flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between border-l-4 transition-all duration-200 hover:translate-x-0.5 ${
           esIngreso ? "border-l-brand hover:border-l-brand-strong" : "border-l-ink-subtle hover:border-l-ink"
         }`}
       >
-        <div className="flex items-start gap-3">
+        <div className="flex items-center gap-3">
           <span
-            className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
               esIngreso ? "bg-brand-soft text-brand border border-brand/10" : "bg-surface-sunken text-ink-muted border border-border"
             }`}
           >
@@ -86,8 +86,8 @@ export function TransaccionCard({
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-4 sm:flex-col sm:items-end">
-          <div className="flex flex-col items-end">
+        <div className="flex items-center justify-between gap-4 sm:flex-col sm:items-center">
+          <div className="flex flex-col items-center">
             <Money
               amount={amount}
               currency={currency}

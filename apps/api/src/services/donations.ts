@@ -2,8 +2,14 @@ import { prisma, Prisma } from "@nehemias/db";
 import {
   toAdminDonation,
   toPublicDonation,
+  buildMeta,
   type DeclareDonationInput,
   type AdminCreateDonationInput,
+  type DonationQuery,
+  type AdminDonationQuery,
+  type Paginated,
+  type PublicDonation,
+  type AdminDonation,
 } from "@nehemias/core";
 import { ApiError } from "../http.js";
 import { applyStockIn } from "./inventory.js";
@@ -154,25 +160,64 @@ export async function reviewDonation(
   });
 }
 
-/** Lista para el panel admin (puede filtrar por estado). */
-export async function listAdminDonations(status?: "pending" | "verified" | "rejected") {
-  const rows = await prisma.donation.findMany({
-    where: status ? { status } : undefined,
-    include: withItems,
-    orderBy: [{ status: "asc" }, { donatedAt: "desc" }, { createdAt: "desc" }],
-  });
-  return rows.map(toAdminDonation);
+function donationDateRangeWhere(query: { from?: Date; to?: Date }): Prisma.DonationWhereInput {
+  if (!query.from && !query.to) return {};
+  return {
+    donatedAt: {
+      ...(query.from && { gte: query.from }),
+      ...(query.to && { lte: query.to }),
+    },
+  };
 }
 
-/** Donaciones verificadas para la cara pública. */
-export async function listPublicVerifiedDonations(limit?: number) {
-  const rows = await prisma.donation.findMany({
-    where: { status: "verified" },
-    orderBy: [{ donatedAt: "desc" }, { createdAt: "desc" }],
-    take: limit,
-    include: withItems,
-  });
-  return rows.map(toPublicDonation);
+/** Lista paginada para el panel admin (filtra por estado, tipo, método, moneda y rango de fechas). */
+export async function listAdminDonations(query: AdminDonationQuery): Promise<Paginated<AdminDonation>> {
+  const where: Prisma.DonationWhereInput = {
+    ...(query.status && { status: query.status }),
+    ...(query.type && { type: query.type }),
+    ...(query.method && { method: query.method }),
+    ...(query.currency && { currency: query.currency }),
+    ...donationDateRangeWhere(query),
+  };
+
+  const [rows, total] = await Promise.all([
+    prisma.donation.findMany({
+      where,
+      include: withItems,
+      orderBy: [{ status: "asc" }, { donatedAt: "desc" }, { createdAt: "desc" }],
+      skip: (query.page - 1) * query.limit,
+      take: query.limit,
+    }),
+    prisma.donation.count({ where }),
+  ]);
+
+  return { data: rows.map(toAdminDonation), meta: buildMeta(query.page, query.limit, total) };
+}
+
+/** Donaciones verificadas para la cara pública, paginadas y filtrables. */
+export async function listPublicVerifiedDonations(
+  query: DonationQuery,
+): Promise<Paginated<PublicDonation>> {
+  const where: Prisma.DonationWhereInput = {
+    status: "verified",
+    ...(query.type && { type: query.type }),
+    ...(query.method && { method: query.method }),
+    ...(query.currency && { currency: query.currency }),
+    ...donationDateRangeWhere(query),
+  };
+
+  const [rows, total] = await Promise.all([
+    prisma.donation.findMany({
+      where,
+      orderBy: [{ donatedAt: "desc" }, { createdAt: "desc" }],
+      skip: (query.page - 1) * query.limit,
+      take: query.limit,
+      include: withItems,
+    }),
+    prisma.donation.count({ where }),
+  ]);
+
+  return { data: rows.map(toPublicDonation), meta: buildMeta(query.page, query.limit, total) };
 }
 
 /** Solo las financieras verificadas (para el cálculo de balance). */

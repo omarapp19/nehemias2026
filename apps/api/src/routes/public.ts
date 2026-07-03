@@ -1,6 +1,12 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import { declareDonationSchema } from "@nehemias/core";
+import {
+  declareDonationSchema,
+  donationQuerySchema,
+  expenseQuerySchema,
+  galleryQuerySchema,
+  buildMeta,
+} from "@nehemias/core";
 import { prisma } from "@nehemias/db";
 import { asyncHandler, ApiError } from "../http.js";
 import { upload } from "../uploads/middleware.js";
@@ -39,11 +45,12 @@ function parseMaybeJson<T>(value: unknown): T | undefined {
 publicRouter.get(
   "/home",
   asyncHandler(async (_req, res) => {
+    const homeListQuery = { page: 1, limit: 20 } as const;
     const [{ balances, exchangeRate }, urgentes, donaciones, egresos, captacion, fotos] = await Promise.all([
       getBalances(),
       listUrgentSupplies(),
-      listPublicVerifiedDonations(),
-      listPublicExpenses(),
+      listPublicVerifiedDonations(homeListQuery),
+      listPublicExpenses(homeListQuery),
       listActivePaymentInfo(),
       prisma.galleryPhoto.findMany({
         take: 8,
@@ -54,8 +61,8 @@ publicRouter.get(
       balances,
       exchangeRate,
       urgentes: urgentes.map(toPublicSupply),
-      ultimasDonaciones: donaciones,
-      ultimosEgresos: egresos,
+      ultimasDonaciones: donaciones.data,
+      ultimosEgresos: egresos.data,
       captacion,
       ultimasFotos: fotos,
     });
@@ -72,14 +79,20 @@ publicRouter.get(
 
 publicRouter.get(
   "/donaciones",
-  asyncHandler(async (_req, res) =>
-    res.json({ donaciones: await listPublicVerifiedDonations(100) }),
-  ),
+  asyncHandler(async (req, res) => {
+    const query = donationQuerySchema.parse(req.query);
+    const { data, meta } = await listPublicVerifiedDonations(query);
+    res.json({ donaciones: data, meta });
+  }),
 );
 
 publicRouter.get(
   "/egresos",
-  asyncHandler(async (_req, res) => res.json({ egresos: await listPublicExpenses(100) })),
+  asyncHandler(async (req, res) => {
+    const query = expenseQuerySchema.parse(req.query);
+    const { data, meta } = await listPublicExpenses(query);
+    res.json({ egresos: data, meta });
+  }),
 );
 
 publicRouter.get(
@@ -101,11 +114,17 @@ publicRouter.get(
 
 publicRouter.get(
   "/galeria",
-  asyncHandler(async (_req, res) => {
-    const fotos = await prisma.galleryPhoto.findMany({
-      orderBy: { createdAt: "desc" },
-    });
-    res.json({ fotos });
+  asyncHandler(async (req, res) => {
+    const { page, limit } = galleryQuerySchema.parse(req.query);
+    const [fotos, total] = await Promise.all([
+      prisma.galleryPhoto.findMany({
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.galleryPhoto.count(),
+    ]);
+    res.json({ fotos, meta: buildMeta(page, limit, total) });
   }),
 );
 

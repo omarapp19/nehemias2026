@@ -25,8 +25,8 @@ export default function AdminDashboard() {
         text: `¡Sincronización masiva exitosa! Se importaron ${result.donationsCount} donaciones y ${result.expensesCount} egresos.`,
       });
       // Recargar datos
-      apiDonaciones("pending")
-        .then((r) => setPendientes(r.donaciones.length))
+      apiDonaciones({ status: "pending", limit: 1 })
+        .then((r) => setPendientes(r.meta.total))
         .catch(() => {});
       apiGet("/public/balances")
         .then((r) => {
@@ -49,8 +49,8 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    apiDonaciones("pending")
-      .then((r) => setPendientes(r.donaciones.length))
+    apiDonaciones({ status: "pending", limit: 1 })
+      .then((r) => setPendientes(r.meta.total))
       .catch(() => setPendientes(0));
     apiGet("/public/balances")
       .then((r) => {

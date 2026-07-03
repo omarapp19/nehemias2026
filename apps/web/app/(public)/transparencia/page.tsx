@@ -7,12 +7,15 @@ import { TransparenciaExplorer } from "@/components/transparencia-explorer";
 export const metadata: Metadata = { title: "Transparencia" };
 export const dynamic = "force-dynamic";
 
+const PAGE_SIZE = 10;
+
 export default async function TransparenciaPage() {
-  const [{ balances, exchangeRate }, { donaciones }, { egresos }] = await Promise.all([
-    getBalances(),
-    getDonaciones(),
-    getEgresos(),
-  ]);
+  const [{ balances, exchangeRate }, { donaciones, meta: donacionesMeta }, { egresos, meta: egresosMeta }] =
+    await Promise.all([
+      getBalances(),
+      getDonaciones({ page: 1, limit: PAGE_SIZE }),
+      getEgresos({ page: 1, limit: PAGE_SIZE }),
+    ]);
 
   return (
     <div className="mx-auto max-w-6xl space-y-16 px-5 py-16 sm:py-24">
@@ -29,7 +32,13 @@ export default async function TransparenciaPage() {
       <section>
         <SectionHeader eyebrow="Historial transaccional" title="Ingresos y egresos" />
         <div className="mt-6">
-          <TransparenciaExplorer donaciones={donaciones} egresos={egresos} exchangeRate={exchangeRate} />
+          <TransparenciaExplorer
+            donaciones={donaciones}
+            donacionesMeta={donacionesMeta}
+            egresos={egresos}
+            egresosMeta={egresosMeta}
+            exchangeRate={exchangeRate}
+          />
         </div>
       </section>
     </div>

@@ -8,6 +8,10 @@ import {
   supplySchema,
   supplyUpdateSchema,
   paymentInfoSchema,
+  adminDonationQuerySchema,
+  adminExpenseQuerySchema,
+  galleryQuerySchema,
+  buildMeta,
 } from "@nehemias/core";
 import { prisma } from "@nehemias/db";
 import fs from "node:fs";
@@ -64,8 +68,9 @@ function adminId(req: { admin?: { sub: string } }): string {
 adminRouter.get(
   "/donaciones",
   asyncHandler(async (req, res) => {
-    const status = req.query.status as "pending" | "verified" | "rejected" | undefined;
-    res.json({ donaciones: await listAdminDonations(status) });
+    const query = adminDonationQuerySchema.parse(req.query);
+    const { data, meta } = await listAdminDonations(query);
+    res.json({ donaciones: data, meta });
   }),
 );
 
@@ -119,7 +124,11 @@ adminRouter.delete(
 // ---------- EGRESOS ----------
 adminRouter.get(
   "/egresos",
-  asyncHandler(async (_req, res) => res.json({ egresos: await listPublicExpenses(200) })),
+  asyncHandler(async (req, res) => {
+    const query = adminExpenseQuerySchema.parse(req.query);
+    const { data, meta } = await listPublicExpenses(query);
+    res.json({ egresos: data, meta });
+  }),
 );
 
 adminRouter.post(
@@ -188,11 +197,17 @@ adminRouter.delete(
 // ---------- GALERÍA ----------
 adminRouter.get(
   "/galeria",
-  asyncHandler(async (_req, res) => {
-    const fotos = await prisma.galleryPhoto.findMany({
-      orderBy: { createdAt: "desc" },
-    });
-    res.json({ fotos });
+  asyncHandler(async (req, res) => {
+    const { page, limit } = galleryQuerySchema.parse(req.query);
+    const [fotos, total] = await Promise.all([
+      prisma.galleryPhoto.findMany({
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.galleryPhoto.count(),
+    ]);
+    res.json({ fotos, meta: buildMeta(page, limit, total) });
   }),
 );
 

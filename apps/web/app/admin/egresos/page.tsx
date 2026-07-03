@@ -15,13 +15,18 @@ import {
   IconX,
   IconEdit,
   IconTrash,
+  IconArrowRight,
 } from "@nehemias/ui";
-import type { PublicExpense } from "@nehemias/core";
+import type { PublicExpense, PaginationMeta } from "@nehemias/core";
 import { apiEgresos, apiCrearEgreso, apiActualizarEgreso, apiEliminarEgreso, apiGet } from "@/lib/admin-api";
 import { fileUrl } from "@/lib/config";
 
+const PAGE_SIZE = 10;
+
 export default function AdminEgresosPage() {
   const [items, setItems] = useState<PublicExpense[]>([]);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState<PaginationMeta>({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 });
   const [modalUrl, setModalUrl] = useState<string | null>(null);
   const [modalLabel, setModalLabel] = useState<string>("");
   const [mostrarForm, setMostrarForm] = useState(false);
@@ -53,9 +58,12 @@ export default function AdminEgresosPage() {
     };
   }, [modalUrl, mostrarForm]);
 
-  function cargar() {
-    apiEgresos()
-      .then((r) => setItems(r.egresos))
+  function cargar(p: number = page) {
+    apiEgresos({ page: p, limit: PAGE_SIZE })
+      .then((r) => {
+        setItems(r.egresos);
+        setMeta(r.meta);
+      })
       .catch(() => setItems([]));
   }
 
@@ -64,15 +72,16 @@ export default function AdminEgresosPage() {
     try {
       await apiEliminarEgreso(id);
       setConfirmDelete(null);
-      cargar();
+      cargar(page);
     } finally {
       setBusyId(null);
     }
   }
 
   useEffect(() => {
-    cargar();
-  }, []);
+    cargar(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -147,7 +156,7 @@ export default function AdminEgresosPage() {
             Historial de Compras Registradas
           </h2>
           <div className="text-xs text-ink-subtle font-medium">
-            Total: <span className="text-ink font-bold">{items.length}</span> compras
+            Total: <span className="text-ink font-bold">{meta.total}</span> compras
           </div>
         </div>
 
@@ -212,6 +221,34 @@ export default function AdminEgresosPage() {
             </div>
           )}
         </div>
+
+        {meta.totalPages > 1 && (
+          <div className="flex items-center justify-center gap-3 border-t border-border/50 pt-4">
+            <Button
+              variant="secondary"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+            >
+              <IconArrowRight size={16} className="rotate-180" />
+              Atrás
+            </Button>
+            <p className="text-sm text-ink-muted">
+              Página <span className="font-semibold text-ink">{meta.page}</span> de {meta.totalPages}
+            </p>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
+              disabled={page >= meta.totalPages}
+            >
+              Adelante
+              <IconArrowRight size={16} />
+            </Button>
+          </div>
+        )}
       </section>
 
       {/* Modal para visualizar el comprobante */}
