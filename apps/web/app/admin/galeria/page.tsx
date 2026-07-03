@@ -7,8 +7,10 @@ import {
   IconUpload,
   IconX,
   IconTrash,
+  IconArrowRight,
   formatDate,
 } from "@nehemias/ui";
+import type { PaginationMeta } from "@nehemias/core";
 import { apiGaleria, apiSubirFotos, apiEliminarFoto } from "@/lib/admin-api";
 import { fileUrl } from "@/lib/config";
 
@@ -19,8 +21,12 @@ interface GalleryPhotoItem {
   createdAt: string;
 }
 
+const PAGE_SIZE = 20;
+
 export default function AdminGaleriaPage() {
   const [fotos, setFotos] = useState<GalleryPhotoItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState<PaginationMeta>({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 });
   const [files, setFiles] = useState<File[]>([]);
   const [estado, setEstado] = useState<"idle" | "enviando">("idle");
   const [error, setError] = useState("");
@@ -28,15 +34,19 @@ export default function AdminGaleriaPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  function cargar() {
-    apiGaleria()
-      .then((r) => setFotos(r.fotos))
+  function cargar(p: number = page) {
+    apiGaleria({ page: p, limit: PAGE_SIZE })
+      .then((r) => {
+        setFotos(r.fotos);
+        setMeta(r.meta);
+      })
       .catch(() => setFotos([]));
   }
 
   useEffect(() => {
-    cargar();
-  }, []);
+    cargar(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   async function eliminar(id: string) {
     setBusyId(id);
@@ -44,7 +54,7 @@ export default function AdminGaleriaPage() {
     try {
       await apiEliminarFoto(id);
       setConfirmDeleteId(null);
-      cargar();
+      cargar(page);
     } catch (err) {
       setDeleteError((err as Error).message || "No se pudo eliminar la foto.");
     } finally {
@@ -141,7 +151,7 @@ export default function AdminGaleriaPage() {
       </Card>
 
       <section className="space-y-4">
-        <h2 className="font-serif text-xl font-semibold text-ink">Imágenes en la galería ({fotos.length})</h2>
+        <h2 className="font-serif text-xl font-semibold text-ink">Imágenes en la galería ({meta.total})</h2>
         
         {deleteError && (
           <div className="bg-danger-soft border border-danger/20 text-danger p-3 rounded-lg text-xs font-semibold">
@@ -219,6 +229,34 @@ export default function AdminGaleriaPage() {
           <p className="text-ink-muted py-8 text-center bg-surface-sunken/45 rounded-xl border border-border border-dashed text-sm font-medium">
             Aún no hay fotos en la galería.
           </p>
+        )}
+
+        {meta.totalPages > 1 && (
+          <div className="flex items-center justify-center gap-3 border-t border-border/50 pt-4">
+            <Button
+              variant="secondary"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+            >
+              <IconArrowRight size={16} className="rotate-180" />
+              Atrás
+            </Button>
+            <p className="text-sm text-ink-muted">
+              Página <span className="font-semibold text-ink">{meta.page}</span> de {meta.totalPages}
+            </p>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
+              disabled={page >= meta.totalPages}
+            >
+              Adelante
+              <IconArrowRight size={16} />
+            </Button>
+          </div>
         )}
       </section>
     </div>

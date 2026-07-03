@@ -17,8 +17,9 @@ import {
   IconCamera,
   IconEdit,
   IconTrash,
+  IconArrowRight,
 } from "@nehemias/ui";
-import type { AdminDonation } from "@nehemias/core";
+import type { AdminDonation, PaginationMeta } from "@nehemias/core";
 import {
   apiDonaciones,
   apiRevisarDonacion,
@@ -33,6 +34,8 @@ import { metodoLabel } from "@/lib/labels";
 import { fileUrl } from "@/lib/config";
 
 type Tab = "pending" | "verified" | "rejected";
+
+const PAGE_SIZE = 10;
 
 function useAuthenticatedUrl(url: string | null) {
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
@@ -93,6 +96,8 @@ function useAuthenticatedUrl(url: string | null) {
 export default function AdminDonacionesPage() {
   const [tab, setTab] = useState<Tab>("pending");
   const [items, setItems] = useState<AdminDonation[]>([]);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState<PaginationMeta>({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 });
   const [cargando, setCargando] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [mostrarForm, setMostrarForm] = useState(false);
@@ -119,23 +124,32 @@ export default function AdminDonacionesPage() {
     };
   }, [modalUrl]);
 
-  function cargar(t: Tab) {
+  function cargar(t: Tab, p: number = page) {
     setCargando(true);
-    apiDonaciones(t)
-      .then((r) => setItems(r.donaciones))
+    apiDonaciones({ status: t, page: p, limit: PAGE_SIZE })
+      .then((r) => {
+        setItems(r.donaciones);
+        setMeta(r.meta);
+      })
       .catch(() => setItems([]))
       .finally(() => setCargando(false));
   }
 
   useEffect(() => {
-    cargar(tab);
-  }, [tab]);
+    cargar(tab, page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, page]);
+
+  function cambiarTab(t: Tab) {
+    setTab(t);
+    setPage(1);
+  }
 
   async function revisar(id: string, action: "verify" | "reject") {
     setBusyId(id);
     try {
       await apiRevisarDonacion(id, action);
-      cargar(tab);
+      cargar(tab, page);
     } finally {
       setBusyId(null);
     }
@@ -146,7 +160,7 @@ export default function AdminDonacionesPage() {
     try {
       await apiEliminarDonacion(id);
       setConfirmDelete(null);
-      cargar(tab);
+      cargar(tab, page);
     } finally {
       setBusyId(null);
     }
@@ -233,7 +247,7 @@ export default function AdminDonacionesPage() {
           ).map(([t, label]) => (
             <button
               key={t}
-              onClick={() => setTab(t)}
+              onClick={() => cambiarTab(t)}
               className={`rounded-lg px-4 py-2 text-xs md:text-sm font-semibold transition-all duration-200 cursor-pointer ${
                 tab === t
                   ? "bg-white text-ink shadow-sm ring-1 ring-black/5"
@@ -245,7 +259,8 @@ export default function AdminDonacionesPage() {
           ))}
         </div>
         <div className="text-xs text-ink-subtle font-medium">
-          Mostrando <span className="text-ink font-bold">{items.length}</span> registros en esta sección
+          Mostrando <span className="text-ink font-bold">{items.length}</span> de{" "}
+          <span className="text-ink font-bold">{meta.total}</span> registros en esta sección
         </div>
       </div>
 
@@ -379,6 +394,34 @@ export default function AdminDonacionesPage() {
               )}
             </Card>
           ))}
+        </div>
+      )}
+
+      {meta.totalPages > 1 && (
+        <div className="flex items-center justify-center gap-3 border-t border-border/50 pt-4">
+          <Button
+            variant="secondary"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1 || cargando}
+          >
+            <IconArrowRight size={16} className="rotate-180" />
+            Atrás
+          </Button>
+          <p className="text-sm text-ink-muted">
+            Página <span className="font-semibold text-ink">{meta.page}</span> de {meta.totalPages}
+          </p>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
+            disabled={page >= meta.totalPages || cargando}
+          >
+            Adelante
+            <IconArrowRight size={16} />
+          </Button>
         </div>
       )}
 
