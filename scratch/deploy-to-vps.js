@@ -3,7 +3,7 @@ const { Client } = require('ssh2');
 const conn = new Client();
 conn.on('ready', () => {
   console.log('Client :: ready');
-  conn.exec('cd ~/nehemias && git reset --hard && git pull && docker compose up -d --build', (err, stream) => {
+  conn.exec('cd ~/nehemias && git reset --hard && git pull && docker compose up -d --build && docker compose cp apps/web/public/Libro1.csv api:/data/uploads/Libro1.csv && docker compose cp apps/web/public/egresos.csv api:/data/uploads/egresos.csv', (err, stream) => {
     if (err) throw err;
     stream.on('close', (code, signal) => {
       console.log('Stream :: close :: code: ' + code + ', signal: ' + signal);

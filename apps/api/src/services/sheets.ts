@@ -1,6 +1,9 @@
 import https from "node:https";
 import http from "node:http";
 import { URL } from "node:url";
+import fs from "node:fs";
+import path from "node:path";
+import { env } from "../env.js";
 import { prisma } from "@nehemias/db";
 import { Currency, DonationType, DonationStatus } from "@prisma/client";
 
@@ -142,6 +145,74 @@ function parseDate(fechaStr: string): Date | null {
   return new Date(year, month - 1, day, 12, 0, 0);
 }
 
+function loadLocalDonationsMap(): Map<string, string> {
+  const map = new Map<string, string>();
+  try {
+    let csvPath = path.resolve(env.uploadsDir, "Libro1.csv");
+    if (!fs.existsSync(csvPath)) {
+      csvPath = path.resolve(process.cwd(), "../../apps/web/public/Libro1.csv");
+    }
+    if (!fs.existsSync(csvPath)) {
+      csvPath = path.resolve(process.cwd(), "../web/public/Libro1.csv");
+    }
+
+    if (fs.existsSync(csvPath)) {
+      console.log(`[Sync] Cargando lookup de donaciones desde: ${csvPath}`);
+      const content = fs.readFileSync(csvPath, "utf-8");
+      const lines = content.split(/\r?\n/);
+      for (const line of lines) {
+        const parts = line.split(";");
+        if (parts.length >= 6) {
+          const ref = parts[1]?.replace("#", "").trim();
+          const link = parts[5]?.trim();
+          if (ref && link && link.startsWith("http")) {
+            map.set(ref.toLowerCase(), link);
+          }
+        }
+      }
+    } else {
+      console.warn("[Sync] No se encontró Libro1.csv local para lookup.");
+    }
+  } catch (e) {
+    console.error("Error cargando Libro1.csv local:", e);
+  }
+  return map;
+}
+
+function loadLocalExpensesMap(): Map<string, string> {
+  const map = new Map<string, string>();
+  try {
+    let csvPath = path.resolve(env.uploadsDir, "egresos.csv");
+    if (!fs.existsSync(csvPath)) {
+      csvPath = path.resolve(process.cwd(), "../../apps/web/public/egresos.csv");
+    }
+    if (!fs.existsSync(csvPath)) {
+      csvPath = path.resolve(process.cwd(), "../web/public/egresos.csv");
+    }
+
+    if (fs.existsSync(csvPath)) {
+      console.log(`[Sync] Cargando lookup de egresos desde: ${csvPath}`);
+      const content = fs.readFileSync(csvPath, "utf-8");
+      const lines = content.split(/\r?\n/);
+      for (const line of lines) {
+        const parts = line.split(";");
+        if (parts.length >= 6) {
+          const ref = parts[1]?.trim();
+          const link = parts[5]?.trim();
+          if (ref && link && link.startsWith("http")) {
+            map.set(ref.toLowerCase(), link);
+          }
+        }
+      }
+    } else {
+      console.warn("[Sync] No se encontró egresos.csv local para lookup.");
+    }
+  } catch (e) {
+    console.error("Error cargando egresos.csv local:", e);
+  }
+  return map;
+}
+
 /**
  * Sincroniza las donaciones financieras y egresos de Google Sheets hacia PostgreSQL de manera atómica.
  */
@@ -166,6 +237,9 @@ export async function syncGoogleSheets(
 
   const donationsRows = parseCSV(donationsRaw);
   const expensesRows = parseCSV(expensesRaw);
+
+  const localDonationsMap = loadLocalDonationsMap();
+  const localExpensesMap = loadLocalExpensesMap();
 
   // Mapeo e importación atómica
   return prisma.$transaction(async (tx) => {
@@ -220,6 +294,13 @@ export async function syncGoogleSheets(
         }
 
         const referenceNumber = refStr ? refStr.replace("#", "").trim() : null;
+        let finalSoporte = soporteStr || null;
+        if (finalSoporte === "Ver" || finalSoporte === "ver") {
+          const lookupKey = referenceNumber?.toLowerCase();
+          if (lookupKey && localDonationsMap.has(lookupKey)) {
+            finalSoporte = localDonationsMap.get(lookupKey)!;
+          }
+        }
 
         await tx.donation.create({
           data: {
@@ -229,7 +310,7 @@ export async function syncGoogleSheets(
             currency,
             method: metodoStr || "Otros",
             referenceNumber,
-            proofUrl: soporteStr || null,
+            proofUrl: finalSoporte,
             donorName: "Anónimo",
             isAnonymous: true,
             declaredByPublic: false,
@@ -287,13 +368,21 @@ export async function syncGoogleSheets(
           continue; // No hay monto válido
         }
 
+        let finalSoporte = soporteStr || null;
+        if (finalSoporte === "Ver" || finalSoporte === "ver") {
+          const lookupKey = facturaStr?.toLowerCase();
+          if (lookupKey && localExpensesMap.has(lookupKey)) {
+            finalSoporte = localExpensesMap.get(lookupKey)!;
+          }
+        }
+
         await tx.expense.create({
           data: {
             description: descripcionStr || "Egreso sin descripción",
             amount,
             currency,
             invoiceNumber: facturaStr || "S/N",
-            invoiceUrl: soporteStr || null,
+            invoiceUrl: finalSoporte,
             spentAt,
             createsStock: false,
             exchangeRate: currency === Currency.VES ? rate : null,
