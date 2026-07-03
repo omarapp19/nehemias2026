@@ -1,9 +1,8 @@
 import type { Response } from "express";
 import { env } from "../env.js";
+import { parseDurationSeconds } from "./jwt.js";
 
 export const SESSION_COOKIE = "nh_session";
-
-const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
 
 /** Coloca la cookie de sesión admin (httpOnly, no accesible por JS). */
 export function setSessionCookie(res: Response, token: string): void {
@@ -13,7 +12,7 @@ export function setSessionCookie(res: Response, token: string): void {
     sameSite: "lax",
     domain: env.cookieDomain,
     path: "/",
-    maxAge: SEVEN_DAYS,
+    maxAge: parseDurationSeconds(env.jwtExpiresIn) * 1000,
   });
 }
 
