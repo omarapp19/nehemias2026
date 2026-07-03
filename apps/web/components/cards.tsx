@@ -51,12 +51,18 @@ export function TransaccionCard({
     };
   }, [showModal]);
 
-  const isDrive = comprobanteUrl?.includes("drive.google.com") ?? false;
+  const lowerUrl = comprobanteUrl?.toLowerCase() ?? "";
+  const isDrive = lowerUrl.includes("drive.google.com") || lowerUrl.endsWith("/files/ver") || lowerUrl === "ver";
+  const googleDriveFolder = process.env.NEXT_PUBLIC_GOOGLE_DRIVE_FOLDER || "https://drive.google.com";
+  const targetUrl = (isDrive && (lowerUrl.endsWith("/files/ver") || lowerUrl === "ver"))
+    ? googleDriveFolder
+    : (comprobanteUrl ?? googleDriveFolder);
   const isPdf = (comprobanteUrl?.toLowerCase().endsWith(".pdf") ?? false) || isDrive;
-  const displayUrl = isDrive && comprobanteUrl ? (() => {
+  const displayUrl = isDrive && comprobanteUrl && !lowerUrl.endsWith("/files/ver") && lowerUrl !== "ver" ? (() => {
     const match = comprobanteUrl.match(/\/d\/([a-zA-Z0-9-_]+)/) || comprobanteUrl.match(/[?&]id=([a-zA-Z0-9-_]+)/);
     return match ? `https://drive.google.com/file/d/${match[1]}/preview` : comprobanteUrl;
   })() : comprobanteUrl;
+
 
   return (
     <>
@@ -140,7 +146,7 @@ export function TransaccionCard({
                     Este documento está almacenado en Google Drive. Debido a las restricciones de seguridad del navegador y de Google Drive (como la protección contra hotlinking y el bloqueo de marcos iFrame), no se puede previsualizar directamente aquí.
                   </p>
                   <a
-                    href={comprobanteUrl ?? undefined}
+                    href={targetUrl ?? undefined}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 rounded-lg bg-brand text-brand-contrast hover:bg-brand-strong px-5 py-2.5 text-sm font-semibold shadow-md transition-all cursor-pointer"
@@ -166,7 +172,7 @@ export function TransaccionCard({
             {/* Pie del Modal */}
             <div className="flex items-center justify-between gap-3 p-4 border-t border-border bg-surface-sunken/30">
               <a
-                href={comprobanteUrl}
+                href={targetUrl ?? undefined}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 rounded-md bg-background text-ink border border-border-strong hover:bg-surface px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors"
