@@ -1,4 +1,4 @@
-import type { Prisma } from "@nehemias/db";
+import { Prisma } from "@nehemias/db";
 
 export type AuditAction = "CREATE" | "UPDATE" | "DELETE" | "VERIFY" | "REJECT" | "SYNC";
 
@@ -24,7 +24,7 @@ export async function recordAudit(tx: Prisma.TransactionClient, entry: AuditEntr
       action: entry.action,
       entityType: entry.entityType,
       entityId: entry.entityId,
-      payload: entry.payload ?? null,
+      payload: (entry.payload ?? Prisma.JsonNull) as Prisma.InputJsonValue,
     },
   });
 }

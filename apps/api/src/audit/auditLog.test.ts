@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { Prisma } from "@nehemias/db";
 import { recordAudit } from "./auditLog.js";
 
 describe("recordAudit", () => {
@@ -27,7 +28,7 @@ describe("recordAudit", () => {
     });
   });
 
-  it("defaults payload to null when omitted", async () => {
+  it("defaults payload to Prisma.JsonNull when omitted", async () => {
     const create = vi.fn().mockResolvedValue({});
     const tx = { auditLog: { create } } as any;
 
@@ -46,7 +47,7 @@ describe("recordAudit", () => {
         action: "SYNC",
         entityType: "Expense",
         entityId: null,
-        payload: null,
+        payload: Prisma.JsonNull,
       },
     });
   });
