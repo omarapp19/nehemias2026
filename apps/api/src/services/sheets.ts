@@ -211,7 +211,7 @@ export async function syncGoogleSheets(
 
         const rate = parseAmount(tasaStr) || 1;
         
-        let currency = Currency.USD;
+        let currency: Currency = Currency.USD;
         let exchangeRate: number | null = null;
 
         if (monedaStr === "VES" || rate > 1) {
@@ -275,7 +275,7 @@ export async function syncGoogleSheets(
         const rate = parseAmount(tasaStr) || null;
 
         let amount = 0;
-        let currency = Currency.VES;
+        let currency: Currency = Currency.VES;
 
         if (montoUsd > 0) {
           amount = montoUsd;
