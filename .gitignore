@@ -32,6 +32,11 @@ npm-debug.log*
 .DS_Store
 coverage/
 
+# Playwright
+e2e/test-results/
+e2e/playwright-report/
+e2e/tests/admin.auth.json
+
 # Fotos y videos originales (pesados, se procesan con el seed)
 apps/web/public/FOTOS/
 apps/web/public/fotos/
