@@ -73,6 +73,12 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm --filter @nehemias/e2e exec playwright install --with-deps chromium
 
+      - name: Rebuild web with E2E API URL
+        run: pnpm --filter @nehemias/web build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4001
+          API_INTERNAL_URL: http://localhost:4001
+
       - name: Seed E2E test admin
         run: pnpm --filter @nehemias/db exec tsx prisma/seed.test.ts
 
