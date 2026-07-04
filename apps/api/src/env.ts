@@ -25,6 +25,9 @@ export const env = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "7d",
   cookieDomain: process.env.COOKIE_DOMAIN || undefined,
   webOrigin: process.env.WEB_ORIGIN ?? "http://localhost:3000",
+  get webOrigins(): string[] {
+    return this.webOrigin.split(",").map((o) => o.trim());
+  },
   uploadsDir: path.resolve(process.env.UPLOADS_DIR ?? path.resolve(process.cwd(), "uploads")),
   maxUploadMb: Number(process.env.MAX_UPLOAD_MB ?? 8),
   publicBaseUrl: process.env.PUBLIC_BASE_URL ?? "",
