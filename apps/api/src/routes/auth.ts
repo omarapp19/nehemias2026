@@ -1,11 +1,12 @@
 import { Router } from "express";
-import { loginSchema } from "@nehemias/core";
+import { loginSchema, changePasswordSchema } from "@nehemias/core";
 import { prisma } from "@nehemias/db";
 import { ApiError, asyncHandler } from "../http.js";
 import { verifyPassword } from "../auth/password.js";
 import { signAdminToken } from "../auth/jwt.js";
 import { setSessionCookie, clearSessionCookie } from "../auth/cookies.js";
 import { requireAdmin } from "../auth/middleware.js";
+import { changeOwnPassword } from "../services/admins.js";
 
 export const authRouter = Router();
 
@@ -37,3 +38,13 @@ authRouter.post("/logout", (_req, res) => {
 authRouter.get("/me", requireAdmin, (req, res) => {
   res.json({ admin: req.admin });
 });
+
+authRouter.post(
+  "/change-password",
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
+    await changeOwnPassword(req.admin!.sub, currentPassword, newPassword);
+    res.json({ ok: true });
+  }),
+);

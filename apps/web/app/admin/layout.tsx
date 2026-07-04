@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Button } from "@nehemias/ui";
+import { Button, Field, Input } from "@nehemias/ui";
 import {
   IconTrendingUp,
   IconHeart,
@@ -14,9 +14,10 @@ import {
   IconShield,
   IconX,
   IconMenu,
+  IconUsers,
 } from "@nehemias/ui";
 import { BrandMark } from "@/components/brand";
-import { apiMe, apiLogout } from "@/lib/admin-api";
+import { apiMe, apiLogout, apiCambiarMiPassword, AdminApiError } from "@/lib/admin-api";
 
 const NAV = [
   { href: "/admin", label: "Inicio", icon: IconTrendingUp },
@@ -25,6 +26,7 @@ const NAV = [
   { href: "/admin/inventario", label: "Inventario", icon: IconBox },
   { href: "/admin/galeria", label: "Galería", icon: IconCamera },
   { href: "/admin/captacion", label: "Métodos de pago", icon: IconShield },
+  { href: "/admin/administradores", label: "Administradores", icon: IconUsers },
 ];
 
 interface Admin {
@@ -39,6 +41,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [admin, setAdmin] = useState<Admin | null>(null);
   const [checking, setChecking] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
 
   useEffect(() => {
     if (isLogin) {
@@ -148,6 +151,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Button
               variant="secondary"
               size="sm"
+              onClick={() => setShowPasswordDialog(true)}
+              className="w-full text-xs h-8 bg-white/10 border-none hover:bg-white/20 text-white font-bold"
+            >
+              Cambiar mi contraseña
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={logout}
               className="w-full text-xs h-8 bg-white/10 border-none hover:bg-white/20 text-white font-bold"
             >
@@ -204,12 +215,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <span className="text-sm font-bold text-ink truncate">{admin?.name}</span>
                 <span className="text-xs text-ink-subtle truncate">Administrador</span>
               </div>
-              <button
-                onClick={logout}
-                className="text-sm font-bold text-danger bg-danger-soft/60 hover:bg-danger-soft px-4 py-2 rounded-lg border border-danger/10 transition-all cursor-pointer"
-              >
-                Cerrar sesión
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowPasswordDialog(true)}
+                  className="text-sm font-bold text-ink bg-surface-sunken hover:bg-surface-sunken/70 px-4 py-2 rounded-lg border border-border/40 transition-all cursor-pointer"
+                >
+                  Cambiar contraseña
+                </button>
+                <button
+                  onClick={logout}
+                  className="text-sm font-bold text-danger bg-danger-soft/60 hover:bg-danger-soft px-4 py-2 rounded-lg border border-danger/10 transition-all cursor-pointer"
+                >
+                  Cerrar sesión
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -243,6 +262,78 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <main className="flex-1 px-6 py-8 md:px-8 md:py-10 max-w-6xl w-full mx-auto">
           {children}
         </main>
+      </div>
+
+      {showPasswordDialog && (
+        <ChangePasswordDialog onClose={() => setShowPasswordDialog(false)} />
+      )}
+    </div>
+  );
+}
+
+function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      await apiCambiarMiPassword(currentPassword, newPassword);
+      onClose();
+    } catch (err) {
+      setError(err instanceof AdminApiError ? err.message : "Error al cambiar la contraseña.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="relative max-w-md w-full bg-white rounded-2xl border border-border shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between p-5 border-b border-border/60 bg-surface-sunken/30">
+          <h3 className="font-serif text-lg font-bold text-ink">Cambiar mi contraseña</h3>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-full text-ink-muted hover:bg-surface-sunken hover:text-ink transition-colors cursor-pointer"
+            aria-label="Cerrar"
+          >
+            <IconX size={20} />
+          </button>
+        </div>
+        <form onSubmit={onSubmit} className="p-6 space-y-4">
+          <Field label="Contraseña actual" htmlFor="current-password" required>
+            <Input
+              id="current-password"
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
+            />
+          </Field>
+          <Field label="Nueva contraseña" htmlFor="new-password" required help="Mínimo 8 caracteres.">
+            <Input
+              id="new-password"
+              type="password"
+              minLength={8}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+            />
+          </Field>
+          {error && <p className="text-sm text-danger">{error}</p>}
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Guardando..." : "Guardar"}
+            </Button>
+          </div>
+        </form>
       </div>
     </div>
   );

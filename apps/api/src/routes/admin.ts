@@ -12,13 +12,15 @@ import {
   adminExpenseQuerySchema,
   galleryQuerySchema,
   buildMeta,
+  createAdminSchema,
+  resetPasswordSchema,
 } from "@nehemias/core";
 import { prisma } from "@nehemias/db";
 import fs from "node:fs";
 import path from "node:path";
 import { resolveStoredPath } from "../uploads/storage.js";
 import { asyncHandler, ApiError } from "../http.js";
-import { requireAdmin } from "../auth/middleware.js";
+import { requireAdmin, requireRole } from "../auth/middleware.js";
 import { upload } from "../uploads/middleware.js";
 import { processAndStore } from "../uploads/images.js";
 import {
@@ -44,6 +46,13 @@ import {
 } from "../services/paymentInfo.js";
 import { getSettings, updateSetting } from "../services/settings.js";
 import { syncGoogleSheets } from "../services/sheets.js";
+import {
+  listAdmins,
+  createAdmin,
+  deactivateAdmin,
+  reactivateAdmin,
+  resetAdminPassword,
+} from "../services/admins.js";
 
 export const adminRouter = Router();
 
@@ -321,5 +330,50 @@ adminRouter.post(
       message: "Sincronización exitosa con Google Sheets.",
       ...result,
     });
+  }),
+);
+
+// ---------- ADMINISTRADORES ----------
+adminRouter.get(
+  "/admins",
+  requireRole("admin"),
+  asyncHandler(async (_req, res) => {
+    res.json({ admins: await listAdmins() });
+  }),
+);
+
+adminRouter.post(
+  "/admins",
+  requireRole("admin"),
+  asyncHandler(async (req, res) => {
+    const input = createAdminSchema.parse(req.body);
+    res.status(201).json({ admin: await createAdmin(input) });
+  }),
+);
+
+adminRouter.patch(
+  "/admins/:id/deactivate",
+  requireRole("admin"),
+  asyncHandler(async (req, res) => {
+    const admin = await deactivateAdmin(req.params.id, adminId(req));
+    res.json({ admin });
+  }),
+);
+
+adminRouter.patch(
+  "/admins/:id/reactivate",
+  requireRole("admin"),
+  asyncHandler(async (req, res) => {
+    res.json({ admin: await reactivateAdmin(req.params.id) });
+  }),
+);
+
+adminRouter.post(
+  "/admins/:id/reset-password",
+  requireRole("admin"),
+  asyncHandler(async (req, res) => {
+    const { password } = resetPasswordSchema.parse(req.body);
+    await resetAdminPassword(req.params.id, password);
+    res.json({ ok: true });
   }),
 );

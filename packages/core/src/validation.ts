@@ -33,6 +33,34 @@ export const loginSchema = z.object({
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
+// — Gestión de administradores —
+export const adminRoleEnum = z.enum(["admin", "coordinator"], {
+  errorMap: () => ({ message: "Elige un rol válido (admin o coordinador)." }),
+});
+
+export const passwordPolicySchema = z
+  .string()
+  .min(8, "La contraseña debe tener al menos 8 caracteres.");
+
+export const createAdminSchema = z.object({
+  email: z.string().email("Escribe un correo válido."),
+  name: z.string().min(2, "Escribe el nombre del administrador."),
+  role: adminRoleEnum,
+  password: passwordPolicySchema,
+});
+export type CreateAdminInput = z.infer<typeof createAdminSchema>;
+
+export const resetPasswordSchema = z.object({
+  password: passwordPolicySchema,
+});
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Escribe tu contraseña actual."),
+  newPassword: passwordPolicySchema,
+});
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
 // — Línea de insumo (donación en especie / entrega) —
 export const itemLineSchema = z.object({
   description: z.string().min(2, "Describe el insumo."),

@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { prisma } from "@nehemias/db";
 import { env } from "../env.js";
 import { ApiError } from "../http.js";
 import { SESSION_COOKIE } from "./cookies.js";
@@ -7,7 +8,7 @@ import { verifyAdminToken } from "./jwt.js";
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /**
- * Exige una sesión admin válida; si no, responde 401.
+ * Exige una sesión admin válida y activa; si no, responde 401.
  *
  * Cuando la sesión llega por cookie (enviada automáticamente por el navegador,
  * incluso en peticiones cross-site) y el método muta estado, exige además que
@@ -15,18 +16,33 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
  * Los clientes que se autentican con `Authorization: Bearer` no dependen de
  * que el navegador adjunte credenciales, así que no están expuestos a CSRF.
  */
-export function requireAdmin(req: Request, _res: Response, next: NextFunction): void {
-  const cookieToken = req.cookies?.[SESSION_COOKIE] as string | undefined;
-  const token = cookieToken ?? bearer(req);
-  const admin = token ? verifyAdminToken(token) : null;
-  if (!admin) {
-    throw new ApiError(401, "Necesitas iniciar sesión.");
+export async function requireAdmin(
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const cookieToken = req.cookies?.[SESSION_COOKIE] as string | undefined;
+    const token = cookieToken ?? bearer(req);
+    const payload = token ? verifyAdminToken(token) : null;
+    if (!payload) {
+      throw new ApiError(401, "Necesitas iniciar sesión.");
+    }
+    if (cookieToken && !SAFE_METHODS.has(req.method) && !hasTrustedOrigin(req)) {
+      throw new ApiError(403, "Origen no permitido.");
+    }
+    // Re-verifica contra la BD en cada request: un JWT puede seguir siendo
+    // válido hasta 7 días después de que la cuenta se desactive o se le
+    // resetee la contraseña. Mismo mensaje genérico para no filtrar el motivo.
+    const admin = await prisma.adminUser.findUnique({ where: { id: payload.sub } });
+    if (!admin || !admin.isActive) {
+      throw new ApiError(401, "Necesitas iniciar sesión.");
+    }
+    req.admin = payload;
+    next();
+  } catch (err) {
+    next(err);
   }
-  if (cookieToken && !SAFE_METHODS.has(req.method) && !hasTrustedOrigin(req)) {
-    throw new ApiError(403, "Origen no permitido.");
-  }
-  req.admin = admin;
-  next();
 }
 
 function hasTrustedOrigin(req: Request): boolean {
