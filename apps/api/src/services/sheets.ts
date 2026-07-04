@@ -3,7 +3,8 @@ import http from "node:http";
 import { URL } from "node:url";
 import ExcelJS from "exceljs";
 import { prisma } from "@nehemias/db";
-import { Currency, DonationType, DonationStatus } from "@prisma/client";
+import { Currency, DonationType, DonationStatus, type Donation, type Expense } from "@prisma/client";
+import { recordAudit } from "../audit/auditLog.js";
 
 const APORTES_SHEET = "APORTES";
 const FACTURAS_SHEET = "FACTURAS";
@@ -141,6 +142,7 @@ function findHeader(
  */
 export async function syncGoogleSheets(
   sheetId: string,
+  adminId: string | null,
 ): Promise<{ donationsCount: number; expensesCount: number }> {
   if (!sheetId) throw new Error("ID de Google Sheet no configurado.");
 
@@ -308,7 +310,15 @@ export async function syncGoogleSheets(
     // (nunca toca donaciones/egresos nativos, que tienen externalRef = null). Si no se pudo leer
     // la cabecera de una pestaña esta corrida, no se borra nada de esa pestaña: un error de
     // parseo no debe leerse como "se borraron todas las filas".
+    let deletedDonations: Donation[] = [];
+    let deletedExpenses: Expense[] = [];
     if (donHeader) {
+      deletedDonations = await tx.donation.findMany({
+        where: {
+          type: DonationType.financial,
+          externalRef: { startsWith: DONATION_REF_PREFIX, notIn: syncedDonationRefs },
+        },
+      });
       await tx.donation.deleteMany({
         where: {
           type: DonationType.financial,
@@ -317,12 +327,43 @@ export async function syncGoogleSheets(
       });
     }
     if (expHeader) {
+      deletedExpenses = await tx.expense.findMany({
+        where: {
+          externalRef: { startsWith: EXPENSE_REF_PREFIX, notIn: syncedExpenseRefs },
+        },
+      });
       await tx.expense.deleteMany({
         where: {
           externalRef: { startsWith: EXPENSE_REF_PREFIX, notIn: syncedExpenseRefs },
         },
       });
     }
+
+    // 5. Bitácora de auditoría: qué se importó y qué se borró en esta corrida.
+    await recordAudit(tx, {
+      actorId: adminId,
+      actorRole: null,
+      action: "SYNC",
+      entityType: "Donation",
+      entityId: null,
+      payload: {
+        deletedCount: deletedDonations.length,
+        insertedCount: donationsCount,
+        deletedSnapshot: deletedDonations,
+      },
+    });
+    await recordAudit(tx, {
+      actorId: adminId,
+      actorRole: null,
+      action: "SYNC",
+      entityType: "Expense",
+      entityId: null,
+      payload: {
+        deletedCount: deletedExpenses.length,
+        insertedCount: expensesCount,
+        deletedSnapshot: deletedExpenses,
+      },
+    });
 
       return { donationsCount, expensesCount };
     },

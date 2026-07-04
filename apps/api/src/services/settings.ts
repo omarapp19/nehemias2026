@@ -1,4 +1,5 @@
 import { prisma } from "@nehemias/db";
+import { recordAudit } from "../audit/auditLog.js";
 
 const DEFAULT_SETTINGS: Record<string, string> = {
   contact_phone: "+58 (412) 555-0123",
@@ -15,10 +16,21 @@ export async function getSettings() {
   return settings;
 }
 
-export async function updateSetting(key: string, value: string) {
-  return prisma.systemSetting.upsert({
-    where: { key },
-    update: { value },
-    create: { key, value },
+export async function updateSetting(key: string, value: string, adminId: string | null) {
+  return prisma.$transaction(async (tx) => {
+    const row = await tx.systemSetting.upsert({
+      where: { key },
+      update: { value },
+      create: { key, value },
+    });
+    await recordAudit(tx, {
+      actorId: adminId,
+      actorRole: null,
+      action: "UPDATE",
+      entityType: "SystemSetting",
+      entityId: key,
+      payload: { value },
+    });
+    return row;
   });
 }

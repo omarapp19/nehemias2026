@@ -13,6 +13,7 @@ import {
 } from "@nehemias/core";
 import { ApiError } from "../http.js";
 import { applyStockIn } from "./inventory.js";
+import { recordAudit } from "../audit/auditLog.js";
 
 type Tx = Prisma.TransactionClient;
 
@@ -121,6 +122,14 @@ export async function adminCreateDonation(
     if (verified && donation.type === "in_kind") {
       await ingresarStockDeDonacion(tx, donation);
     }
+    await recordAudit(tx, {
+      actorId: adminId,
+      actorRole: null,
+      action: "CREATE",
+      entityType: "Donation",
+      entityId: donation.id,
+      payload: { status: donation.status, type: donation.type },
+    });
     return toAdminDonation(donation);
   });
 }
@@ -144,6 +153,14 @@ export async function reviewDonation(
         data: { status: "rejected", verifiedById: adminId, verifiedAt: new Date() },
         include: withItems,
       });
+      await recordAudit(tx, {
+        actorId: adminId,
+        actorRole: null,
+        action: "REJECT",
+        entityType: "Donation",
+        entityId: id,
+        payload: null,
+      });
       return toAdminDonation(updated);
     }
 
@@ -156,6 +173,14 @@ export async function reviewDonation(
     if (updated.type === "in_kind") {
       await ingresarStockDeDonacion(tx, updated);
     }
+    await recordAudit(tx, {
+      actorId: adminId,
+      actorRole: null,
+      action: "VERIFY",
+      entityType: "Donation",
+      entityId: id,
+      payload: null,
+    });
     return toAdminDonation(updated);
   });
 }
@@ -234,37 +259,59 @@ export async function updateDonation(
   input: Partial<AdminCreateDonationInput>,
   proofUrl?: string | null,
 ) {
-  const donation = await prisma.donation.findUnique({ where: { id } });
-  if (!donation) throw new ApiError(404, "Donación no encontrada.");
+  return prisma.$transaction(async (tx) => {
+    const donation = await tx.donation.findUnique({ where: { id } });
+    if (!donation) throw new ApiError(404, "Donación no encontrada.");
 
-  const updated = await prisma.donation.update({
-    where: { id },
-    data: {
-      ...(input.donorName !== undefined && { donorName: input.donorName ?? null }),
-      ...(input.isAnonymous !== undefined && { isAnonymous: input.isAnonymous }),
-      ...(input.message !== undefined && { message: input.message ?? null }),
-      ...(input.donorContact !== undefined && { donorContact: input.donorContact ?? null }),
-      ...(input.referenceNumber !== undefined && { referenceNumber: input.referenceNumber ?? null }),
-      ...(input.method !== undefined && { method: input.method ?? null }),
-      ...(input.donatedAt !== undefined && { donatedAt: input.donatedAt }),
-      ...(input.amount !== undefined && input.amount !== null && {
-        amount: new Prisma.Decimal(input.amount),
-      }),
-      ...(input.currency !== undefined && { currency: input.currency }),
-      ...(input.exchangeRate !== undefined && input.exchangeRate !== null && {
-        exchangeRate: new Prisma.Decimal(input.exchangeRate),
-      }),
-      // Solo reemplaza el comprobante si se envía uno nuevo
-      ...(proofUrl !== undefined && { proofUrl: proofUrl ?? donation.proofUrl }),
-    },
-    include: withItems,
+    const updated = await tx.donation.update({
+      where: { id },
+      data: {
+        ...(input.donorName !== undefined && { donorName: input.donorName ?? null }),
+        ...(input.isAnonymous !== undefined && { isAnonymous: input.isAnonymous }),
+        ...(input.message !== undefined && { message: input.message ?? null }),
+        ...(input.donorContact !== undefined && { donorContact: input.donorContact ?? null }),
+        ...(input.referenceNumber !== undefined && { referenceNumber: input.referenceNumber ?? null }),
+        ...(input.method !== undefined && { method: input.method ?? null }),
+        ...(input.donatedAt !== undefined && { donatedAt: input.donatedAt }),
+        ...(input.amount !== undefined && input.amount !== null && {
+          amount: new Prisma.Decimal(input.amount),
+        }),
+        ...(input.currency !== undefined && { currency: input.currency }),
+        ...(input.exchangeRate !== undefined && input.exchangeRate !== null && {
+          exchangeRate: new Prisma.Decimal(input.exchangeRate),
+        }),
+        // Solo reemplaza el comprobante si se envía uno nuevo
+        ...(proofUrl !== undefined && { proofUrl: proofUrl ?? donation.proofUrl }),
+      },
+      include: withItems,
+    });
+
+    await recordAudit(tx, {
+      actorId: null,
+      actorRole: null,
+      action: "UPDATE",
+      entityType: "Donation",
+      entityId: id,
+      payload: null,
+    });
+
+    return toAdminDonation(updated);
   });
-  return toAdminDonation(updated);
 }
 
 /** Elimina una donación permanentemente (InKindItems se borran por cascade). */
 export async function deleteDonation(id: string) {
-  const donation = await prisma.donation.findUnique({ where: { id } });
-  if (!donation) throw new ApiError(404, "Donación no encontrada.");
-  await prisma.donation.delete({ where: { id } });
+  await prisma.$transaction(async (tx) => {
+    const donation = await tx.donation.findUnique({ where: { id } });
+    if (!donation) throw new ApiError(404, "Donación no encontrada.");
+    await tx.donation.delete({ where: { id } });
+    await recordAudit(tx, {
+      actorId: null,
+      actorRole: null,
+      action: "DELETE",
+      entityType: "Donation",
+      entityId: id,
+      payload: { snapshot: donation },
+    });
+  });
 }

@@ -1,5 +1,6 @@
 import { prisma, Prisma } from "@nehemias/db";
 import { esUrgente, type SupplyInput, type SupplyUpdateInput } from "@nehemias/core";
+import { recordAudit } from "../audit/auditLog.js";
 
 type Tx = Prisma.TransactionClient;
 
@@ -114,42 +115,74 @@ export function listUrgentSupplies() {
   });
 }
 
-export async function createSupply(input: SupplyInput) {
-  const supply = await prisma.supply.create({
-    data: {
-      name: input.name,
-      category: input.category ?? null,
-      unit: input.unit,
-      currentStock: new Prisma.Decimal(input.currentStock ?? 0),
-      minThreshold: new Prisma.Decimal(input.minThreshold ?? 0),
-      origin: input.origin ?? null,
-    },
+export async function createSupply(input: SupplyInput, adminId: string | null) {
+  const supply = await prisma.$transaction(async (tx) => {
+    const created = await tx.supply.create({
+      data: {
+        name: input.name,
+        category: input.category ?? null,
+        unit: input.unit,
+        currentStock: new Prisma.Decimal(input.currentStock ?? 0),
+        minThreshold: new Prisma.Decimal(input.minThreshold ?? 0),
+        origin: input.origin ?? null,
+      },
+    });
+    await recalcUrgent(tx, created.id);
+    await recordAudit(tx, {
+      actorId: adminId,
+      actorRole: null,
+      action: "CREATE",
+      entityType: "Supply",
+      entityId: created.id,
+      payload: null,
+    });
+    return created;
   });
-  await prisma.$transaction((tx) => recalcUrgent(tx, supply.id));
   return prisma.supply.findUnique({ where: { id: supply.id } });
 }
 
-export async function updateSupply(id: string, input: SupplyUpdateInput) {
-  await prisma.supply.update({
-    where: { id },
-    data: {
-      ...(input.name !== undefined ? { name: input.name } : {}),
-      ...(input.category !== undefined ? { category: input.category } : {}),
-      ...(input.unit !== undefined ? { unit: input.unit } : {}),
-      ...(input.currentStock !== undefined
-        ? { currentStock: new Prisma.Decimal(input.currentStock) }
-        : {}),
-      ...(input.minThreshold !== undefined
-        ? { minThreshold: new Prisma.Decimal(input.minThreshold) }
-        : {}),
-      ...(input.origin !== undefined ? { origin: input.origin } : {}),
-    },
+export async function updateSupply(id: string, input: SupplyUpdateInput, adminId: string | null) {
+  await prisma.$transaction(async (tx) => {
+    await tx.supply.update({
+      where: { id },
+      data: {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.category !== undefined ? { category: input.category } : {}),
+        ...(input.unit !== undefined ? { unit: input.unit } : {}),
+        ...(input.currentStock !== undefined
+          ? { currentStock: new Prisma.Decimal(input.currentStock) }
+          : {}),
+        ...(input.minThreshold !== undefined
+          ? { minThreshold: new Prisma.Decimal(input.minThreshold) }
+          : {}),
+        ...(input.origin !== undefined ? { origin: input.origin } : {}),
+      },
+    });
+    await recalcUrgent(tx, id);
+    await recordAudit(tx, {
+      actorId: adminId,
+      actorRole: null,
+      action: "UPDATE",
+      entityType: "Supply",
+      entityId: id,
+      payload: null,
+    });
   });
-  await prisma.$transaction((tx) => recalcUrgent(tx, id));
   return prisma.supply.findUnique({ where: { id } });
 }
 
-export async function deleteSupply(id: string) {
-  await prisma.supply.delete({ where: { id } });
+export async function deleteSupply(id: string, adminId: string | null) {
+  await prisma.$transaction(async (tx) => {
+    const supply = await tx.supply.findUnique({ where: { id } });
+    await tx.supply.delete({ where: { id } });
+    await recordAudit(tx, {
+      actorId: adminId,
+      actorRole: null,
+      action: "DELETE",
+      entityType: "Supply",
+      entityId: id,
+      payload: { snapshot: supply },
+    });
+  });
 }
 

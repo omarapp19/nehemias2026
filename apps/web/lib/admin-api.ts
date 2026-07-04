@@ -114,3 +114,17 @@ export const apiSyncSheets = () => apiJson("/admin/sync-sheets", "POST", {});
 export const apiSettings = () => apiGet("/admin/settings");
 export const apiActualizarSettings = (data: Record<string, string>) => apiJson("/admin/settings", "PUT", data);
 
+// — Auditoría —
+export interface AuditLogRow {
+  id: string;
+  actorId: string | null;
+  actorRole: string | null;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  payload: unknown;
+  createdAt: string;
+}
+export const apiAuditoria = (params?: { page?: number; limit?: number; entityType?: string }) =>
+  apiGet(`/admin/auditoria${buildQueryString(params)}`);
+

@@ -194,6 +194,13 @@ export type AdminExpenseQuery = z.infer<typeof adminExpenseQuerySchema>;
 export const galleryQuerySchema = paginationQuerySchema;
 export type GalleryQuery = z.infer<typeof galleryQuerySchema>;
 
+export const auditLogQuerySchema = paginationQuerySchema.merge(dateRangeSchema).merge(
+  z.object({
+    entityType: z.string().min(1).optional(),
+  }),
+);
+export type AuditLogQuery = z.infer<typeof auditLogQuerySchema>;
+
 // — Datos de captación —
 export const paymentInfoSchema = z.object({
   label: z.string().min(2, "Escribe la etiqueta (p. ej. Pago Móvil)."),
