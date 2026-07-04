@@ -29,7 +29,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://nehemias_test:nehemias_test@localhost:55432/nehemias_test?schema=public
       JWT_SECRET: test-secret-do-not-use-in-production
-      WEB_ORIGIN: http://localhost:3000
+      WEB_ORIGIN: http://localhost:3001
       SEED_ADMIN_EMAIL: admin@test.local
       SEED_ADMIN_PASSWORD: test-admin-password-123
       SEED_ADMIN_NAME: Test Admin
@@ -99,6 +99,6 @@ jobs:
           npx wait-on http://localhost:4001/health http://localhost:3001 --timeout 30000
 
       - name: Run E2E tests
-        run: pnpm --filter @nehemias/e2e test
+        run: pnpm --filter @nehemias/e2e test:e2e
         env:
           E2E_WEB_URL: http://localhost:3001
