@@ -32,6 +32,7 @@ import {
 import { BrandMark } from "@/components/brand";
 import { metodoLabel } from "@/lib/labels";
 import { fileUrl } from "@/lib/config";
+import { getDriveDisplay } from "@/lib/drive";
 
 type Tab = "pending" | "verified" | "rejected";
 
@@ -106,13 +107,10 @@ export default function AdminDonacionesPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [modalUrl, setModalUrl] = useState<string | null>(null);
   const [modalLabel, setModalLabel] = useState<string>("");
-  const lowerModalUrl = modalUrl?.toLowerCase() ?? "";
-  const isDrive = lowerModalUrl.includes("drive.google.com") || lowerModalUrl.endsWith("/files/ver") || lowerModalUrl === "ver";
-  const googleDriveFolder = process.env.NEXT_PUBLIC_GOOGLE_DRIVE_FOLDER || "https://drive.google.com";
-  const targetUrl = (isDrive && (lowerModalUrl.endsWith("/files/ver") || lowerModalUrl === "ver"))
-    ? googleDriveFolder
-    : (modalUrl ?? googleDriveFolder);
+  const { isDrive, isPlaceholder, canEmbed, targetUrl, displayUrl: driveDisplayUrl } = getDriveDisplay(modalUrl);
+  const showFallback = isPlaceholder || (isDrive && !canEmbed);
   const { url: secureModalUrl, loading: secureLoading, error: secureError } = useAuthenticatedUrl(modalUrl);
+  const displayModalUrl = isDrive && canEmbed ? driveDisplayUrl : secureModalUrl;
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -455,7 +453,7 @@ export default function AdminDonacionesPage() {
                 <div className="text-sm font-semibold text-ink-subtle animate-pulse">Cargando comprobante...</div>
               ) : secureError ? (
                 <div className="text-sm font-semibold text-danger bg-danger-soft/30 border border-danger/10 p-4 rounded-xl">{secureError}</div>
-              ) : isDrive ? (
+              ) : showFallback ? (
                 <div className="text-center p-8 space-y-4 max-w-md bg-white border border-border/80 rounded-2xl shadow-sm flex flex-col items-center">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft/50 text-brand">
                     <IconCamera size={24} />
@@ -473,15 +471,15 @@ export default function AdminDonacionesPage() {
                     Abrir en pestaña nueva
                   </a>
                 </div>
-              ) : modalUrl.toLowerCase().endsWith(".pdf") ? (
+              ) : modalUrl.toLowerCase().endsWith(".pdf") || isDrive ? (
                 <iframe
-                  src={secureModalUrl || ""}
+                  src={displayModalUrl || ""}
                   title="Comprobante PDF"
                   className="w-full h-[60vh] border-0 rounded-md shadow-sm bg-background"
                 />
               ) : (
                 <img
-                  src={secureModalUrl || ""}
+                  src={displayModalUrl || ""}
                   alt="Comprobante"
                   className="max-h-[60vh] max-w-full object-contain rounded-md shadow-md border border-border/50 bg-background"
                 />
