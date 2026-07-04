@@ -8,6 +8,17 @@ import { Currency, DonationType, DonationStatus } from "@prisma/client";
 const APORTES_SHEET = "APORTES";
 const FACTURAS_SHEET = "FACTURAS";
 
+/** Prefijos de `externalRef` para distinguir registros importados de Sheets de los nativos. */
+const DONATION_REF_PREFIX = "sheets:APORTES:";
+const EXPENSE_REF_PREFIX = "sheets:FACTURAS:";
+
+/**
+ * Clave fija para el advisory lock de Postgres que serializa las ejecuciones de sync
+ * (evita que dos sync concurrentes pisen los mismos registros). Cualquier bigint estable sirve;
+ * se deriva de un hash simple del nombre para no colisionar con otros locks del sistema.
+ */
+const SYNC_LOCK_KEY = 727_402_931;
+
 /**
  * Descarga un archivo binario de forma asíncrona, siguiendo redirecciones (3xx).
  */
@@ -148,13 +159,22 @@ export async function syncGoogleSheets(
   if (!aportesSheet) throw new Error(`No se encontró la pestaña "${APORTES_SHEET}" en el Sheet.`);
   if (!facturasSheet) throw new Error(`No se encontró la pestaña "${FACTURAS_SHEET}" en el Sheet.`);
 
-  return prisma.$transaction(async (tx) => {
-    // 1. Limpieza de donaciones financieras y todos los egresos
-    await tx.donation.deleteMany({ where: { type: DonationType.financial } });
-    await tx.expense.deleteMany();
+  return await prisma.$transaction(
+    async (tx) => {
+    // Serializa ejecuciones concurrentes de sync (ej. dos clicks del admin, o un cron solapado
+    // con un click manual). pg_try_advisory_xact_lock no bloquea y se libera solo al terminar
+    // la transacción (commit o rollback), sin riesgo de fugarse a otra conexión del pool.
+    const [{ locked }] = await tx.$queryRaw<[{ locked: boolean }]>`
+      SELECT pg_try_advisory_xact_lock(${SYNC_LOCK_KEY}) AS locked
+    `;
+    if (!locked) {
+      throw new Error("Ya hay una sincronización con Google Sheets en curso. Intenta de nuevo en unos minutos.");
+    }
 
     let donationsCount = 0;
     let expensesCount = 0;
+    const syncedDonationRefs: string[] = [];
+    const syncedExpenseRefs: string[] = [];
 
     // 2. Importar Donaciones (pestaña APORTES)
     const donHeader = findHeader(aportesSheet, ["Fecha", "Monto Original", "# Referencia", "Soporte"]);
@@ -190,25 +210,32 @@ export async function syncGoogleSheets(
         }
 
         const referenceNumber = refStr.replace("#", "").trim();
+        if (!referenceNumber) continue;
         const finalSoporte = cellHyperlink(row.getCell(colSoporte));
+        const externalRef = `${DONATION_REF_PREFIX}row-${r}`;
 
-        await tx.donation.create({
-          data: {
-            type: DonationType.financial,
-            status: DonationStatus.verified,
-            amount,
-            currency,
-            method: cellText(row.getCell(colTipoAporte).value) || "Otros",
-            referenceNumber,
-            proofUrl: finalSoporte,
-            donorName: "Anónimo",
-            isAnonymous: true,
-            declaredByPublic: false,
-            donatedAt,
-            verifiedAt: new Date(),
-            exchangeRate,
-          },
+        const data = {
+          type: DonationType.financial,
+          status: DonationStatus.verified,
+          amount,
+          currency,
+          method: cellText(row.getCell(colTipoAporte).value) || "Otros",
+          referenceNumber,
+          proofUrl: finalSoporte,
+          donorName: "Anónimo",
+          isAnonymous: true,
+          declaredByPublic: false,
+          donatedAt,
+          verifiedAt: new Date(),
+          exchangeRate,
+        };
+
+        await tx.donation.upsert({
+          where: { externalRef },
+          create: { ...data, externalRef },
+          update: data,
         });
+        syncedDonationRefs.push(externalRef);
         donationsCount++;
       }
     } else {
@@ -252,25 +279,53 @@ export async function syncGoogleSheets(
         }
 
         const finalSoporte = cellHyperlink(row.getCell(colSoporte));
+        const externalRef = `${EXPENSE_REF_PREFIX}row-${r}`;
 
-        await tx.expense.create({
-          data: {
-            description: cellText(row.getCell(colDescripcion).value) || "Egreso sin descripción",
-            amount,
-            currency,
-            invoiceNumber: facturaStr || "S/N",
-            invoiceUrl: finalSoporte,
-            spentAt,
-            createsStock: false,
-            exchangeRate: currency === Currency.VES ? rate : null,
-          },
+        const data = {
+          description: cellText(row.getCell(colDescripcion).value) || "Egreso sin descripción",
+          amount,
+          currency,
+          invoiceNumber: facturaStr || "S/N",
+          invoiceUrl: finalSoporte,
+          spentAt,
+          createsStock: false,
+          exchangeRate: currency === Currency.VES ? rate : null,
+        };
+
+        await tx.expense.upsert({
+          where: { externalRef },
+          create: { ...data, externalRef },
+          update: data,
         });
+        syncedExpenseRefs.push(externalRef);
         expensesCount++;
       }
     } else {
       console.warn(`[Sync] No se encontró la fila de cabecera en "${FACTURAS_SHEET}".`);
     }
 
-    return { donationsCount, expensesCount };
-  });
+    // 4. Elimina de la base solo lo que fue importado de Sheets y ya no aparece en la hoja
+    // (nunca toca donaciones/egresos nativos, que tienen externalRef = null). Si no se pudo leer
+    // la cabecera de una pestaña esta corrida, no se borra nada de esa pestaña: un error de
+    // parseo no debe leerse como "se borraron todas las filas".
+    if (donHeader) {
+      await tx.donation.deleteMany({
+        where: {
+          type: DonationType.financial,
+          externalRef: { startsWith: DONATION_REF_PREFIX, notIn: syncedDonationRefs },
+        },
+      });
+    }
+    if (expHeader) {
+      await tx.expense.deleteMany({
+        where: {
+          externalRef: { startsWith: EXPENSE_REF_PREFIX, notIn: syncedExpenseRefs },
+        },
+      });
+    }
+
+      return { donationsCount, expensesCount };
+    },
+    { timeout: 60_000 },
+  );
 }

@@ -14,6 +14,7 @@ import {
   formatNumber,
   type Currency,
 } from "@nehemias/ui";
+import { getDriveDisplay } from "@/lib/drive";
 
 /** Tarjeta de transacción: un ingreso (donación) o un egreso (compra). */
 export function TransaccionCard({
@@ -51,17 +52,9 @@ export function TransaccionCard({
     };
   }, [showModal]);
 
-  const lowerUrl = comprobanteUrl?.toLowerCase() ?? "";
-  const isDrive = lowerUrl.includes("drive.google.com") || lowerUrl.endsWith("/files/ver") || lowerUrl === "ver";
-  const googleDriveFolder = process.env.NEXT_PUBLIC_GOOGLE_DRIVE_FOLDER || "https://drive.google.com";
-  const targetUrl = (isDrive && (lowerUrl.endsWith("/files/ver") || lowerUrl === "ver"))
-    ? googleDriveFolder
-    : (comprobanteUrl ?? googleDriveFolder);
-  const isPdf = (comprobanteUrl?.toLowerCase().endsWith(".pdf") ?? false) || isDrive;
-  const displayUrl = isDrive && comprobanteUrl && !lowerUrl.endsWith("/files/ver") && lowerUrl !== "ver" ? (() => {
-    const match = comprobanteUrl.match(/\/d\/([a-zA-Z0-9-_]+)/) || comprobanteUrl.match(/[?&]id=([a-zA-Z0-9-_]+)/);
-    return match ? `https://drive.google.com/file/d/${match[1]}/preview` : comprobanteUrl;
-  })() : comprobanteUrl;
+  const { isDrive, isPlaceholder, canEmbed, targetUrl, displayUrl } = getDriveDisplay(comprobanteUrl);
+  const showFallback = isPlaceholder || (isDrive && !canEmbed);
+  const isPdf = (comprobanteUrl?.toLowerCase().endsWith(".pdf") ?? false) || (isDrive && canEmbed);
 
 
   return (
@@ -136,7 +129,7 @@ export function TransaccionCard({
 
             {/* Contenido del Modal */}
             <div className="flex-1 overflow-auto bg-muted/10 p-4 flex items-center justify-center min-h-[300px]">
-              {isDrive ? (
+              {showFallback ? (
                 <div className="text-center p-8 space-y-4 max-w-md bg-white border border-border/80 rounded-2xl shadow-sm flex flex-col items-center">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft/50 text-brand">
                     <IconReceipt size={24} />

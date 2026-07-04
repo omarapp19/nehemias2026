@@ -373,7 +373,10 @@ Esto es el alma del producto. **Cualquier cambio que toque estos puntos debe rev
 - **sharp borra metadatos EXIF/GPS** al re-codificar a webp (no se filtra la ubicación del
   teléfono). No llamen `.withMetadata()`.
 - **Auth admin:** argon2id para el hash, JWT en cookie `httpOnly` (`Secure` en producción,
-  `SameSite=lax`), middleware `requireAdmin` en todas las rutas `/admin`.
+  `SameSite=lax`), middleware `requireAdmin` en todas las rutas `/admin`. Ese mismo middleware
+  exige que `Origin`/`Referer` coincida con `WEB_ORIGIN` en cualquier método mutante autenticado
+  por cookie (protección CSRF); los clientes con `Authorization: Bearer` quedan exentos porque no
+  dependen del navegador para adjuntar credenciales.
 - **Sesión admin (JWT):** token de `JWT_EXPIRES_IN` (2h por defecto) con refresh silencioso a
   mitad de vida (`requireAdmin` re-firma y re-setea la cookie si sigue activo), pero con tope
   absoluto de 12h desde el login (`sessionStart` en el payload, `ABSOLUTE_SESSION_MAX_SECONDS` en
@@ -393,10 +396,9 @@ Esto es el alma del producto. **Cualquier cambio que toque estos puntos debe rev
 - **Anonimato:** si `isAnonymous`, el nombre del donante se reemplaza por “Anónimo” en
   `donorDisplay()`; el contacto nunca sale.
 
-> ⚠️ **Pendiente de seguridad importante** (ver checklist): la auth admin usa cookie + `SameSite=lax`.
-> Para las acciones de estado del panel conviene añadir **protección CSRF** (token) o migrar a
-> `SameSite=strict` + verificación de origen. Hoy es aceptable porque web y API comparten dominio
-> raíz y el panel no es de cara pública, pero **debe endurecerse** antes de escalar.
+> ✅ **Resuelto:** `requireAdmin` (`apps/api/src/auth/middleware.ts`) verifica `Origin`/`Referer`
+> contra `WEB_ORIGIN` en toda petición mutante autenticada por cookie, rechazando con 403 si no
+> coincide (protección CSRF).
 
 ---
 

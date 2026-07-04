@@ -20,6 +20,7 @@ import {
 import type { PublicExpense, PaginationMeta } from "@nehemias/core";
 import { apiEgresos, apiCrearEgreso, apiActualizarEgreso, apiEliminarEgreso, apiGet } from "@/lib/admin-api";
 import { fileUrl } from "@/lib/config";
+import { getDriveDisplay } from "@/lib/drive";
 
 const PAGE_SIZE = 10;
 
@@ -35,12 +36,9 @@ export default function AdminEgresosPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const lowerModalUrl = modalUrl?.toLowerCase() ?? "";
-  const isDrive = lowerModalUrl.includes("drive.google.com") || lowerModalUrl.endsWith("/files/ver") || lowerModalUrl === "ver";
-  const googleDriveFolder = process.env.NEXT_PUBLIC_GOOGLE_DRIVE_FOLDER || "https://drive.google.com";
-  const targetUrl = (isDrive && (lowerModalUrl.endsWith("/files/ver") || lowerModalUrl === "ver"))
-    ? googleDriveFolder
-    : (modalUrl ?? googleDriveFolder);
+  const { isDrive, isPlaceholder, canEmbed, targetUrl, displayUrl: driveDisplayUrl } = getDriveDisplay(modalUrl);
+  const showFallback = isPlaceholder || (isDrive && !canEmbed);
+  const displayModalUrl = isDrive && canEmbed ? driveDisplayUrl : modalUrl;
 
 
   useEffect(() => {
@@ -271,7 +269,7 @@ export default function AdminEgresosPage() {
 
             {/* Contenido del Modal */}
             <div className="flex-1 overflow-auto bg-muted/10 p-4 flex items-center justify-center min-h-[300px]">
-              {isDrive ? (
+              {showFallback ? (
                 <div className="text-center p-8 space-y-4 max-w-md bg-white border border-border/80 rounded-2xl shadow-sm flex flex-col items-center">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft/50 text-brand">
                     <IconReceipt size={24} />
@@ -289,15 +287,15 @@ export default function AdminEgresosPage() {
                     Abrir en pestaña nueva
                   </a>
                 </div>
-              ) : modalUrl.toLowerCase().endsWith(".pdf") ? (
+              ) : modalUrl.toLowerCase().endsWith(".pdf") || isDrive ? (
                 <iframe
-                  src={modalUrl}
+                  src={displayModalUrl ?? undefined}
                   title="Factura PDF"
                   className="w-full h-[60vh] border-0 rounded-md shadow-sm bg-background"
                 />
               ) : (
                 <img
-                  src={modalUrl}
+                  src={displayModalUrl ?? undefined}
                   alt="Factura"
                   className="max-h-[60vh] max-w-full object-contain rounded-md shadow-md border border-border/50 bg-background"
                 />
