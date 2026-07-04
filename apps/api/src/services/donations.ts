@@ -41,36 +41,8 @@ async function ingresarStockDeDonacion(
   }
 }
 
-/** Ventana para detectar reenvíos duplicados del mismo formulario público. */
-const DUPLICATE_WINDOW_MS = 2 * 60 * 1000;
-
-/**
- * Reintentos de red desde el formulario público (fetch lanza error aunque el
- * servidor ya haya guardado la donación) generan duplicados exactos. Si hay
- * una declaración reciente con los mismos datos, la devolvemos en vez de
- * crear otra fila.
- */
-async function findRecentDuplicate(input: DeclareDonationInput) {
-  return prisma.donation.findFirst({
-    where: {
-      declaredByPublic: true,
-      type: input.type,
-      currency: input.currency,
-      method: input.method ?? null,
-      referenceNumber: input.referenceNumber ?? null,
-      donorContact: input.donorContact ?? null,
-      amount: input.type === "financial" && input.amount ? new Prisma.Decimal(input.amount) : null,
-      createdAt: { gte: new Date(Date.now() - DUPLICATE_WINDOW_MS) },
-    },
-    include: withItems,
-  });
-}
-
 /** Camino B: el público declara su donación. Entra SIEMPRE como `pending`. */
 export async function declareDonation(input: DeclareDonationInput, proofUrl?: string) {
-  const duplicate = await findRecentDuplicate(input);
-  if (duplicate) return toAdminDonation(duplicate);
-
   const donation = await prisma.donation.create({
     data: {
       type: input.type,

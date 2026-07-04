@@ -15,7 +15,6 @@ export function DonarForm() {
   const [metodos, setMetodos] = useState<{ id: string; label: string; isActive: boolean; defaultCurrency?: "USD" | "VES" }[]>([]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const isSubmittingRef = useRef(false);
 
   // Form states matching financial donations only
   const [montoOriginal, setMontoOriginal] = useState("");
@@ -137,8 +136,6 @@ export function DonarForm() {
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (isSubmittingRef.current) return;
-    isSubmittingRef.current = true;
     setEstado("enviando");
     setError("");
 
@@ -152,7 +149,6 @@ export function DonarForm() {
     if (isNaN(amt) || amt <= 0) {
       setError("El monto debe ser mayor que cero.");
       setEstado("idle");
-      isSubmittingRef.current = false;
       return;
     }
     data.set("amount", String(amt));
@@ -173,17 +169,14 @@ export function DonarForm() {
         setRefNum("");
         setFileName("");
         setImagePreviewUrl(null);
-        // No liberamos isSubmittingRef: la vista cambia a "ok" y el form ya no se reutiliza.
         return;
       }
       const body = await res.json().catch(() => ({}));
       setError(body?.error ?? "No pudimos registrar tu donación. Revisa los datos.");
       setEstado("error");
-      isSubmittingRef.current = false;
     } catch {
       setError("No hay conexión. Intenta de nuevo en un momento.");
       setEstado("error");
-      isSubmittingRef.current = false;
     }
   }
 
@@ -198,14 +191,7 @@ export function DonarForm() {
           Tu donación quedó registrada y la verificaremos pronto. Una vez confirmada,
           aparecerá en la transparencia pública.
         </p>
-        <Button
-          className="mt-6 font-semibold"
-          variant="secondary"
-          onClick={() => {
-            isSubmittingRef.current = false;
-            setEstado("idle");
-          }}
-        >
+        <Button className="mt-6 font-semibold" variant="secondary" onClick={() => setEstado("idle")}>
           Declarar otra donación
         </Button>
       </div>
