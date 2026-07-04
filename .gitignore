@@ -16,6 +16,7 @@ build/
 .env
 .env.local
 .env.*.local
+.env.test
 
 # Prisma
 packages/db/prisma/*.db
@@ -23,6 +24,7 @@ packages/db/prisma/*.db
 # Archivos subidos (en local; en prod van a un volumen) — NO tocar apps/api/src/uploads (código)
 /uploads/
 /apps/api/uploads/
+test-uploads/
 
 # Logs y sistema
 *.log
