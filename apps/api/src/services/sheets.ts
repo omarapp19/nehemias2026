@@ -212,7 +212,7 @@ export async function syncGoogleSheets(
         const referenceNumber = refStr.replace("#", "").trim();
         if (!referenceNumber) continue;
         const finalSoporte = cellHyperlink(row.getCell(colSoporte));
-        const externalRef = `${DONATION_REF_PREFIX}${referenceNumber}`;
+        const externalRef = `${DONATION_REF_PREFIX}row-${r}`;
 
         const data = {
           type: DonationType.financial,
@@ -279,7 +279,7 @@ export async function syncGoogleSheets(
         }
 
         const finalSoporte = cellHyperlink(row.getCell(colSoporte));
-        const externalRef = `${EXPENSE_REF_PREFIX}${facturaStr}`;
+        const externalRef = `${EXPENSE_REF_PREFIX}row-${r}`;
 
         const data = {
           description: cellText(row.getCell(colDescripcion).value) || "Egreso sin descripción",
