@@ -41,39 +41,92 @@ async function ingresarStockDeDonacion(
   }
 }
 
-/** Camino B: el público declara su donación. Entra SIEMPRE como `pending`. */
-export async function declareDonation(input: DeclareDonationInput, proofUrl?: string) {
-  const donation = await prisma.donation.create({
-    data: {
+/** Ventana para detectar reenvíos duplicados del mismo formulario público. */
+const DUPLICATE_WINDOW_MS = 2 * 60 * 1000;
+
+/**
+ * Reintentos de red desde el formulario público (fetch lanza error aunque el
+ * servidor ya haya guardado la donación) generan duplicados exactos. Si hay
+ * una declaración reciente con los mismos datos, la devolvemos en vez de
+ * crear otra fila.
+ */
+async function findRecentDuplicate(tx: Tx, input: DeclareDonationInput) {
+  return tx.donation.findFirst({
+    where: {
+      declaredByPublic: true,
       type: input.type,
-      status: "pending",
-      amount: input.type === "financial" && input.amount ? new Prisma.Decimal(input.amount) : null,
       currency: input.currency,
       method: input.method ?? null,
       referenceNumber: input.referenceNumber ?? null,
-      exchangeRate: input.exchangeRate ? new Prisma.Decimal(input.exchangeRate) : null,
-      donorName: input.donorName ?? null,
-      isAnonymous: input.isAnonymous ?? false,
       donorContact: input.donorContact ?? null,
-      message: input.message ?? null,
-      proofUrl: proofUrl ?? null,
-      declaredByPublic: true,
-      donatedAt: input.donatedAt ?? new Date(),
-      inKindItems:
-        input.type === "in_kind" && input.inKindItems
-          ? {
-              create: input.inKindItems.map((i) => ({
-                description: i.description,
-                quantity: new Prisma.Decimal(i.quantity),
-                unit: i.unit,
-                supplyId: i.supplyId ?? null,
-              })),
-            }
-          : undefined,
+      amount: input.type === "financial" && input.amount ? new Prisma.Decimal(input.amount) : null,
+      createdAt: { gte: new Date(Date.now() - DUPLICATE_WINDOW_MS) },
     },
     include: withItems,
   });
-  return toAdminDonation(donation);
+}
+
+/**
+ * Serializa declaraciones concurrentes del mismo aporte (mismo donante,
+ * monto y referencia) para que la comprobación de duplicados en
+ * `findRecentDuplicate` sea atómica. Sin este lock, dos solicitudes
+ * simultáneas (doble clic real a nivel de red, no solo de UI) pueden pasar
+ * ambas la verificación antes de que cualquiera inserte su fila.
+ */
+function duplicateLockKey(input: DeclareDonationInput): string {
+  return [
+    input.type,
+    input.currency,
+    input.method ?? "",
+    input.referenceNumber ?? "",
+    input.donorContact ?? "",
+    input.type === "financial" ? (input.amount ?? "") : "",
+  ].join("|");
+}
+
+/** Camino B: el público declara su donación. Entra SIEMPRE como `pending`. */
+export async function declareDonation(input: DeclareDonationInput, proofUrl?: string) {
+  return prisma.$transaction(
+    async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${duplicateLockKey(input)}))`;
+
+      const duplicate = await findRecentDuplicate(tx, input);
+      if (duplicate) return toAdminDonation(duplicate);
+
+      const donation = await tx.donation.create({
+        data: {
+          type: input.type,
+          status: "pending",
+          amount: input.type === "financial" && input.amount ? new Prisma.Decimal(input.amount) : null,
+          currency: input.currency,
+          method: input.method ?? null,
+          referenceNumber: input.referenceNumber ?? null,
+          exchangeRate: input.exchangeRate ? new Prisma.Decimal(input.exchangeRate) : null,
+          donorName: input.donorName ?? null,
+          isAnonymous: input.isAnonymous ?? false,
+          donorContact: input.donorContact ?? null,
+          message: input.message ?? null,
+          proofUrl: proofUrl ?? null,
+          declaredByPublic: true,
+          donatedAt: input.donatedAt ?? new Date(),
+          inKindItems:
+            input.type === "in_kind" && input.inKindItems
+              ? {
+                  create: input.inKindItems.map((i) => ({
+                    description: i.description,
+                    quantity: new Prisma.Decimal(i.quantity),
+                    unit: i.unit,
+                    supplyId: i.supplyId ?? null,
+                  })),
+                }
+              : undefined,
+        },
+        include: withItems,
+      });
+      return toAdminDonation(donation);
+    },
+    { maxWait: 10_000, timeout: 10_000 },
+  );
 }
 
 /** Admin registra una donación; puede quedar verificada directamente. */
