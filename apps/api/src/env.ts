@@ -22,7 +22,8 @@ export const env = {
   port: Number(process.env.API_PORT ?? 4000),
   databaseUrl: required("DATABASE_URL"),
   jwtSecret: required("JWT_SECRET", isProd ? undefined : "dev-secret-no-usar-en-produccion"),
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "7d",
+  jwtSecretPrevious: process.env.JWT_SECRET_PREVIOUS || undefined,
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "2h",
   cookieDomain: process.env.COOKIE_DOMAIN || undefined,
   webOrigin: process.env.WEB_ORIGIN ?? "http://localhost:3000",
   get webOrigins(): string[] {

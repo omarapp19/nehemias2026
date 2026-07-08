@@ -377,6 +377,18 @@ Esto es el alma del producto. **Cualquier cambio que toque estos puntos debe rev
   exige que `Origin`/`Referer` coincida con `WEB_ORIGIN` en cualquier método mutante autenticado
   por cookie (protección CSRF); los clientes con `Authorization: Bearer` quedan exentos porque no
   dependen del navegador para adjuntar credenciales.
+- **Sesión admin (JWT):** token de `JWT_EXPIRES_IN` (2h por defecto) con refresh silencioso a
+  mitad de vida (`requireAdmin` re-firma y re-setea la cookie si sigue activo), pero con tope
+  absoluto de 12h desde el login (`sessionStart` en el payload, `ABSOLUTE_SESSION_MAX_SECONDS` en
+  `jwt.ts`) — una sesión activa nunca dura para siempre.
+- **Rotación de `JWT_SECRET` sin desloguear a todos:**
+  1. Pon `JWT_SECRET_PREVIOUS` con el valor actual de `JWT_SECRET`.
+  2. Pon `JWT_SECRET` con un valor nuevo aleatorio.
+  3. Redeploy. `verifyAdminToken` intenta primero con el secreto actual y, si falla, reintenta con
+     `JWT_SECRET_PREVIOUS` — los tokens viejos siguen validando hasta que expiran solos (máx. 2h,
+     ya no 7 días).
+  4. En la siguiente rotación (o cuando ya no queden tokens viejos vivos), quita
+     `JWT_SECRET_PREVIOUS`.
 - **Rate limiting** en el endpoint público de escritura (`express-rate-limit`).
 - **Validación zod estricta** en cada entrada + límite de tamaño/tipo en uploads (`multer`).
 - **Helmet** con `crossOriginResourcePolicy: cross-origin` (para que el sitio pueda incrustar
@@ -505,7 +517,10 @@ Revisada y verificada contra el código el 2026-07-03.
       cuándo) — especialmente importante porque el sync de Sheets borra datos.
 - [ ] **Cabeceras CSP** explícitas y endurecidas (hoy Helmet corre con la config por defecto, sin
       `Content-Security-Policy` a medida).
-- [ ] **Rotación de `JWT_SECRET`** y expiración/refresh de sesión.
+- [x] **Rotación de `JWT_SECRET`** y expiración/refresh de sesión. `JWT_EXPIRES_IN` bajó a `2h`
+      con refresh deslizante a mitad de vida y tope absoluto de 12h (`sessionStart`), más fallback
+      a `JWT_SECRET_PREVIOUS` en `verifyAdminToken` para rotar el secreto sin desloguear a todos.
+      Ver nota y runbook en la sección 9.
 
 ### P2 — Calidad / CI (red de seguridad para todo lo demás)
 - [ ] **Pruebas automatizadas** (hoy NO hay ni un test en el repo):

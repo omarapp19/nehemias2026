@@ -1,13 +1,13 @@
 import type { NextFunction, Request, Response } from "express";
 import { env } from "../env.js";
 import { ApiError } from "../http.js";
-import { SESSION_COOKIE } from "./cookies.js";
-import { verifyAdminToken } from "./jwt.js";
+import { setSessionCookie, SESSION_COOKIE } from "./cookies.js";
+import { ABSOLUTE_SESSION_MAX_SECONDS, parseDurationSeconds, signAdminToken, verifyAdminToken } from "./jwt.js";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /**
- * Exige una sesión admin válida; si no, responde 401.
+ * Exige una sesión admin válida; refresca el token a mitad de su vida útil.
  *
  * Cuando la sesión llega por cookie (enviada automáticamente por el navegador,
  * incluso en peticiones cross-site) y el método muta estado, exige además que
@@ -15,7 +15,7 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
  * Los clientes que se autentican con `Authorization: Bearer` no dependen de
  * que el navegador adjunte credenciales, así que no están expuestos a CSRF.
  */
-export function requireAdmin(req: Request, _res: Response, next: NextFunction): void {
+export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
   const cookieToken = req.cookies?.[SESSION_COOKIE] as string | undefined;
   const token = cookieToken ?? bearer(req);
   const admin = token ? verifyAdminToken(token) : null;
@@ -25,6 +25,21 @@ export function requireAdmin(req: Request, _res: Response, next: NextFunction): 
   if (cookieToken && !SAFE_METHODS.has(req.method) && !hasTrustedOrigin(req)) {
     throw new ApiError(403, "Origen no permitido.");
   }
+
+  const now = Math.floor(Date.now() / 1000);
+  if (now - admin.sessionStart > ABSOLUTE_SESSION_MAX_SECONDS) {
+    throw new ApiError(401, "Necesitas iniciar sesión.");
+  }
+
+  const halfLife = parseDurationSeconds(env.jwtExpiresIn) / 2;
+  if (now - admin.iat > halfLife) {
+    const refreshed = signAdminToken(
+      { sub: admin.sub, role: admin.role, name: admin.name },
+      admin.sessionStart,
+    );
+    setSessionCookie(res, refreshed);
+  }
+
   req.admin = admin;
   next();
 }
