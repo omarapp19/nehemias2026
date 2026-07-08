@@ -12,6 +12,27 @@ concurrency:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: nehemias_test
+          POSTGRES_PASSWORD: nehemias_test
+          POSTGRES_DB: nehemias_test
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U nehemias_test -d nehemias_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://nehemias_test:nehemias_test@localhost:55432/nehemias_test?schema=public
+      JWT_SECRET: test-secret-do-not-use-in-production
+      WEB_ORIGIN: http://localhost:3001
+      SEED_ADMIN_EMAIL: admin@test.local
+      SEED_ADMIN_PASSWORD: test-admin-password-123
+      SEED_ADMIN_NAME: Test Admin
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,3 +63,42 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Apply test DB migrations
+        run: pnpm --filter @nehemias/db exec prisma migrate deploy
+
+      - name: Run unit + integration tests
+        run: pnpm test
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @nehemias/e2e exec playwright install --with-deps chromium
+
+      - name: Rebuild web with E2E API URL
+        run: pnpm --filter @nehemias/web build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4001
+          API_INTERNAL_URL: http://localhost:4001
+
+      - name: Seed E2E test admin
+        run: pnpm --filter @nehemias/db exec tsx prisma/seed.test.ts
+
+      - name: Start API for E2E
+        run: pnpm --filter @nehemias/api start &
+        env:
+          API_PORT: 4001
+
+      - name: Start web for E2E
+        run: pnpm --filter @nehemias/web start &
+        env:
+          PORT: 3001
+          API_INTERNAL_URL: http://localhost:4001
+          NEXT_PUBLIC_API_URL: http://localhost:4001
+
+      - name: Wait for web and API to be ready
+        run: |
+          npx wait-on http://localhost:4001/health http://localhost:3001 --timeout 30000
+
+      - name: Run E2E tests
+        run: pnpm --filter @nehemias/e2e test:e2e
+        env:
+          E2E_WEB_URL: http://localhost:3001
