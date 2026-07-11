@@ -236,6 +236,27 @@ model GalleryPhoto {
   createdAt DateTime @default(now())
 }
 
+// ---------- PUNTOS DE AYUDA (mapa público) ----------
+enum HelpPointType {
+  person
+  organization
+}
+
+model HelpPoint {
+  id           String        @id @default(uuid())
+  name         String
+  type         HelpPointType
+  description  String
+  contactPhone String?
+  contactEmail String?
+  lat          Decimal       @db.Decimal(9, 6)
+  lng          Decimal       @db.Decimal(9, 6)
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+
+  @@index([isActive])
+}
+
 // ---------- CONFIGURACIÓN GENERAL ----------
 model SystemSetting {
   key   String @id
