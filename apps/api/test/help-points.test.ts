@@ -106,4 +106,40 @@ describe("help points: admin CRUD + public visibility", () => {
     const list = await request(app).get("/admin/puntos-ayuda").set("Cookie", cookie);
     expect(list.body.puntosAyuda).toHaveLength(0);
   });
+
+  it("includes active help points in the public home snapshot, and lets admin save the impact zone trace", async () => {
+    const app = createTestApp();
+    const cookie = await createAdminSessionCookie();
+
+    await request(app)
+      .post("/admin/puntos-ayuda")
+      .set("Cookie", cookie)
+      .set("Origin", "http://localhost:3000")
+      .send({
+        name: "Punto Home",
+        type: "person",
+        description: "Ofrece agua y comida.",
+        lat: 10.5,
+        lng: -67.0,
+      });
+
+    const home = await request(app).get("/public/home");
+    expect(home.body.puntosAyuda).toHaveLength(1);
+    expect(home.body.puntosAyuda[0].name).toBe("Punto Home");
+
+    const coords = JSON.stringify([
+      [10.8206, -68.324],
+      [10.6017, -66.9308],
+    ]);
+    const settingsRes = await request(app)
+      .put("/admin/settings")
+      .set("Cookie", cookie)
+      .set("Origin", "http://localhost:3000")
+      .send({ impact_zone_coords: coords });
+    expect(settingsRes.status).toBe(200);
+    expect(settingsRes.body.settings.impact_zone_coords).toBe(coords);
+
+    const publicSettings = await request(app).get("/public/settings");
+    expect(publicSettings.body.settings.impact_zone_coords).toBe(coords);
+  });
 });

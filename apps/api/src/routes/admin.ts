@@ -305,10 +305,12 @@ adminRouter.get(
 adminRouter.put(
   "/settings",
   asyncHandler(async (req, res) => {
-    const { contact_phone, contact_email, contact_sede } = req.body;
+    const { contact_phone, contact_email, contact_sede, impact_zone_coords } = req.body;
     if (typeof contact_phone === "string") await updateSetting("contact_phone", contact_phone);
     if (typeof contact_email === "string") await updateSetting("contact_email", contact_email);
     if (typeof contact_sede === "string") await updateSetting("contact_sede", contact_sede);
+    if (typeof impact_zone_coords === "string")
+      await updateSetting("impact_zone_coords", impact_zone_coords);
     res.json({ settings: await getSettings() });
   }),
 );

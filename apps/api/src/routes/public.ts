@@ -47,17 +47,19 @@ publicRouter.get(
   "/home",
   asyncHandler(async (_req, res) => {
     const homeListQuery = { page: 1, limit: 20 } as const;
-    const [{ balances, exchangeRate }, urgentes, donaciones, egresos, captacion, fotos] = await Promise.all([
-      getBalances(),
-      listUrgentSupplies(),
-      listPublicVerifiedDonations(homeListQuery),
-      listPublicExpenses(homeListQuery),
-      listActivePaymentInfo(),
-      prisma.galleryPhoto.findMany({
-        take: 8,
-        orderBy: { createdAt: "desc" },
-      }),
-    ]);
+    const [{ balances, exchangeRate }, urgentes, donaciones, egresos, captacion, fotos, puntosAyuda] =
+      await Promise.all([
+        getBalances(),
+        listUrgentSupplies(),
+        listPublicVerifiedDonations(homeListQuery),
+        listPublicExpenses(homeListQuery),
+        listActivePaymentInfo(),
+        prisma.galleryPhoto.findMany({
+          take: 8,
+          orderBy: { createdAt: "desc" },
+        }),
+        listActiveHelpPoints(),
+      ]);
     res.json({
       balances,
       exchangeRate,
@@ -66,6 +68,7 @@ publicRouter.get(
       ultimosEgresos: egresos.data,
       captacion,
       ultimasFotos: fotos,
+      puntosAyuda,
     });
   }),
 );
