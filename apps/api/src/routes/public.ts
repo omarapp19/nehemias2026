@@ -19,6 +19,7 @@ import { listPublicExpenses } from "../services/expenses.js";
 import { listSupplies, listUrgentSupplies } from "../services/inventory.js";
 import { getBalances } from "../services/transparency.js";
 import { listActivePaymentInfo } from "../services/paymentInfo.js";
+import { listActiveHelpPoints } from "../services/helpPoints.js";
 import { getSettings } from "../services/settings.js";
 import { toPublicSupply } from "@nehemias/core";
 
@@ -131,6 +132,11 @@ publicRouter.get(
 publicRouter.get(
   "/captacion",
   asyncHandler(async (_req, res) => res.json({ captacion: await listActivePaymentInfo() })),
+);
+
+publicRouter.get(
+  "/puntos-ayuda",
+  asyncHandler(async (_req, res) => res.json({ puntosAyuda: await listActiveHelpPoints() })),
 );
 
 publicRouter.get(
