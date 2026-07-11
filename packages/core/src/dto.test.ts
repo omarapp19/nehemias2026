@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { donorDisplay, toPublicDonation, toAdminDonation, type DonationRow } from "./dto.js";
+import {
+  donorDisplay,
+  toPublicDonation,
+  toAdminDonation,
+  toPublicHelpPoint,
+  type DonationRow,
+  type HelpPointRow,
+} from "./dto.js";
 
 const baseDonation: DonationRow = {
   id: "d1",
@@ -62,5 +69,34 @@ describe("toAdminDonation", () => {
   it("never has a passwordHash field (not part of DonationRow)", () => {
     const admin = toAdminDonation(baseDonation);
     expect(admin).not.toHaveProperty("passwordHash");
+  });
+});
+
+describe("toPublicHelpPoint", () => {
+  const baseHelpPoint: HelpPointRow = {
+    id: "h1",
+    name: "Cruz Roja La Guaira",
+    type: "organization",
+    description: "Entrega de agua potable y kits de higiene.",
+    contactPhone: "+58 412 555 0000",
+    contactEmail: "ayuda@cruzroja.org",
+    lat: "10.601700",
+    lng: "-66.930800",
+    isActive: true,
+    createdAt: new Date("2026-07-11T00:00:00.000Z"),
+  };
+
+  it("converts Decimal-like lat/lng to numbers", () => {
+    const pub = toPublicHelpPoint(baseHelpPoint);
+    expect(pub.lat).toBe(10.6017);
+    expect(pub.lng).toBe(-66.9308);
+  });
+
+  it("keeps public contact fields but drops isActive/createdAt", () => {
+    const pub = toPublicHelpPoint(baseHelpPoint);
+    expect(pub.contactPhone).toBe("+58 412 555 0000");
+    expect(pub.contactEmail).toBe("ayuda@cruzroja.org");
+    expect(pub).not.toHaveProperty("isActive");
+    expect(pub).not.toHaveProperty("createdAt");
   });
 });
