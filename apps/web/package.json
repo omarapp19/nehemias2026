@@ -12,12 +12,15 @@
   "dependencies": {
     "@nehemias/core": "workspace:*",
     "@nehemias/ui": "workspace:*",
+    "leaflet": "^1.9.4",
     "next": "^15.1.2",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-leaflet": "^5.0.0"
   },
   "devDependencies": {
     "@nehemias/config": "workspace:*",
+    "@types/leaflet": "^1.9.12",
     "@types/node": "^20.17.6",
     "@types/react": "^19.0.1",
     "@types/react-dom": "^19.0.2",

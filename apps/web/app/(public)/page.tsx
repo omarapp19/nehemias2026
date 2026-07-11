@@ -1,17 +1,22 @@
 import Link from "next/link";
 import { buttonClasses, SectionHeader, IconArrowRight, IconShield } from "@nehemias/ui";
-import { getHome, type HomeSnapshot } from "@/lib/api";
+import { getHome, getSettings, type HomeSnapshot } from "@/lib/api";
 import { BalancePanel } from "@/components/balance";
 import { InsumoCard } from "@/components/cards";
 import { RecentDonations, RecentExpenses } from "@/components/recent-transactions";
 import { GalleryView } from "@/components/gallery-view";
+import { parseZoneCoords } from "@/lib/impact-zone";
+import ImpactMap from "@/components/impact-map-loader";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   let data: HomeSnapshot | null = null;
+  let zoneCoords: [number, number][] | null = null;
   try {
-    data = await getHome();
+    const [home, settingsRes] = await Promise.all([getHome(), getSettings()]);
+    data = home;
+    zoneCoords = parseZoneCoords(settingsRes.settings.impact_zone_coords);
   } catch {
     data = null;
   }
@@ -125,6 +130,18 @@ export default async function HomePage() {
             </div>
           </section>
         )}
+
+        {/* ── Mapa de ayuda ── */}
+        <section>
+          <SectionHeader
+            eyebrow="Zona afectada"
+            title="Mapa de ayuda en terreno"
+            description="La traza marca la zona de mayor impacto del terremoto. Cada punto es una persona u organización brindando ayuda ahí — haz clic para ver cómo contactarla."
+          />
+          <div className="mt-6">
+            <ImpactMap points={data.puntosAyuda} zoneCoords={zoneCoords} />
+          </div>
+        </section>
 
         {/* ── Movimientos recientes ── */}
         <section className="grid gap-10 lg:grid-cols-2 items-stretch">
