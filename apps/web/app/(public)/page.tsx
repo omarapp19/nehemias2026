@@ -14,11 +14,15 @@ export default async function HomePage() {
   let data: HomeSnapshot | null = null;
   let zoneCoords: [number, number][] | null = null;
   try {
-    const [home, settingsRes] = await Promise.all([getHome(), getSettings()]);
-    data = home;
-    zoneCoords = parseZoneCoords(settingsRes.settings.impact_zone_coords);
+    data = await getHome();
   } catch {
     data = null;
+  }
+  try {
+    const settingsRes = await getSettings();
+    zoneCoords = parseZoneCoords(settingsRes.settings.impact_zone_coords);
+  } catch {
+    zoneCoords = null;
   }
 
   if (!data) {
