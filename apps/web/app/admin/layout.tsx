@@ -23,6 +23,7 @@ const NAV = [
   { href: "/admin/donaciones", label: "Donaciones", icon: IconHeart },
   { href: "/admin/egresos", label: "Egresos", icon: IconReceipt },
   { href: "/admin/inventario", label: "Inventario", icon: IconBox },
+  { href: "/admin/mapa-ayuda", label: "Mapa de ayuda", icon: IconMapPin },
   { href: "/admin/galeria", label: "Galería", icon: IconCamera },
   { href: "/admin/captacion", label: "Métodos de pago", icon: IconShield },
 ];
