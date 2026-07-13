@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
-import { Button, Card, Field, Input, Textarea, Select, Badge, IconX, IconTrash } from "@nehemias/ui";
+import { Button, Card, Field, Input, Textarea, Select, Badge, IconX, IconTrash, IconEdit } from "@nehemias/ui";
 import {
   apiPuntosAyuda,
   apiCrearPuntoAyuda,
+  apiActualizarPuntoAyuda,
   apiEliminarPuntoAyuda,
   apiSettings,
   apiActualizarSettings,
@@ -34,6 +35,7 @@ export default function AdminMapaAyudaPage() {
   const [puntos, setPuntos] = useState<PuntoAyudaRow[]>([]);
   const [mode, setMode] = useState<"puntos" | "traza">("puntos");
   const [pendingCoord, setPendingCoord] = useState<{ lat: number; lng: number } | null>(null);
+  const [editingPoint, setEditingPoint] = useState<PuntoAyudaRow | null>(null);
   const [zoneCoords, setZoneCoords] = useState<[number, number][]>(DEFAULT_ZONE_COORDS);
   const [zoneSaving, setZoneSaving] = useState(false);
   const [zoneMessage, setZoneMessage] = useState("");
@@ -61,11 +63,11 @@ export default function AdminMapaAyudaPage() {
   }, []);
 
   useEffect(() => {
-    document.body.style.overflow = pendingCoord ? "hidden" : "";
+    document.body.style.overflow = (pendingCoord || editingPoint) ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
-  }, [pendingCoord]);
+  }, [pendingCoord, editingPoint]);
 
   function onMapClick(lat: number, lng: number) {
     if (mode === "puntos") {
@@ -118,6 +120,11 @@ export default function AdminMapaAyudaPage() {
             <Button variant={mode === "puntos" ? "primary" : "secondary"} size="sm" onClick={() => setMode("puntos")}>
               Agregar puntos
             </Button>
+            {mode === "puntos" && (
+              <Button variant="secondary" size="sm" onClick={() => setPendingCoord({ lat: 10.55, lng: -67.4 })}>
+                Agregar por coordenadas
+              </Button>
+            )}
             <Button variant={mode === "traza" ? "primary" : "secondary"} size="sm" onClick={() => setMode("traza")}>
               Editar traza de impacto
             </Button>
@@ -158,14 +165,19 @@ export default function AdminMapaAyudaPage() {
       </Card>
 
       {mounted &&
-        pendingCoord &&
+        (pendingCoord || editingPoint) &&
         createPortal(
           <div className="fixed inset-0 z-50 flex justify-center items-start overflow-y-auto bg-black/60 backdrop-blur-sm p-4 sm:p-6 md:p-8">
             <div className="relative max-w-lg w-full bg-white rounded-2xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto animate-in zoom-in-95 duration-200">
               <div className="flex items-center justify-between p-5 border-b border-border/60 bg-surface-sunken/30">
-                <h3 className="font-serif text-lg font-bold text-ink leading-tight">Nuevo punto de ayuda</h3>
+                <h3 className="font-serif text-lg font-bold text-ink leading-tight">
+                  {editingPoint ? "Editar punto de ayuda" : "Nuevo punto de ayuda"}
+                </h3>
                 <button
-                  onClick={() => setPendingCoord(null)}
+                  onClick={() => {
+                    setPendingCoord(null);
+                    setEditingPoint(null);
+                  }}
                   className="p-1.5 rounded-full text-ink-muted hover:bg-surface-sunken hover:text-ink transition-colors cursor-pointer"
                   aria-label="Cerrar"
                 >
@@ -174,12 +186,17 @@ export default function AdminMapaAyudaPage() {
               </div>
               <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
                 <PuntoAyudaForm
-                  coord={pendingCoord}
+                  coord={pendingCoord || undefined}
+                  point={editingPoint || undefined}
                   onDone={() => {
                     setPendingCoord(null);
+                    setEditingPoint(null);
                     cargarPuntos();
                   }}
-                  onCancel={() => setPendingCoord(null)}
+                  onCancel={() => {
+                    setPendingCoord(null);
+                    setEditingPoint(null);
+                  }}
                 />
               </div>
             </div>
@@ -218,13 +235,22 @@ export default function AdminMapaAyudaPage() {
                   </Button>
                 </div>
               ) : (
-                <button
-                  onClick={() => setConfirmDeleteId(p.id)}
-                  className="p-2 rounded-full text-danger hover:bg-danger-soft transition-colors cursor-pointer"
-                  title="Eliminar punto"
-                >
-                  <IconTrash size={18} />
-                </button>
+                <>
+                  <button
+                    onClick={() => setEditingPoint(p)}
+                    className="p-2 rounded-full text-brand hover:bg-brand-soft transition-colors cursor-pointer"
+                    title="Editar punto"
+                  >
+                    <IconEdit size={18} />
+                  </button>
+                  <button
+                    onClick={() => setConfirmDeleteId(p.id)}
+                    className="p-2 rounded-full text-danger hover:bg-danger-soft transition-colors cursor-pointer"
+                    title="Eliminar punto"
+                  >
+                    <IconTrash size={18} />
+                  </button>
+                </>
               )}
             </div>
           </Card>
@@ -240,23 +266,99 @@ export default function AdminMapaAyudaPage() {
   );
 }
 
+function parseGoogleMapsCoords(input: string): { lat: number; lng: number } | null {
+  const str = input.trim();
+
+  // 1. Direct coordinates pattern: e.g. "10.488011, -66.879191"
+  const directMatch = str.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+  if (directMatch) {
+    const lat = parseFloat(directMatch[1]);
+    const lng = parseFloat(directMatch[2]);
+    if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      return { lat, lng };
+    }
+  }
+
+  // 2. Google Maps URL matching
+  // Look for @lat,lng
+  const atMatch = str.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (atMatch) {
+    const lat = parseFloat(atMatch[1]);
+    const lng = parseFloat(atMatch[2]);
+    if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      return { lat, lng };
+    }
+  }
+
+  // Look for q=lat,lng or query=lat,lng
+  const qMatch = str.match(/[?&](?:q|query)=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (qMatch) {
+    const lat = parseFloat(qMatch[1]);
+    const lng = parseFloat(qMatch[2]);
+    if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      return { lat, lng };
+    }
+  }
+
+  // Look for /place/lat,lng
+  const placeMatch = str.match(/\/place\/(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (placeMatch) {
+    const lat = parseFloat(placeMatch[1]);
+    const lng = parseFloat(placeMatch[2]);
+    if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      return { lat, lng };
+    }
+  }
+
+  return null;
+}
+
 function PuntoAyudaForm({
   coord,
+  point,
   onDone,
   onCancel,
 }: {
-  coord: { lat: number; lng: number };
+  coord?: { lat: number; lng: number };
+  point?: PuntoAyudaRow;
   onDone: () => void;
   onCancel: () => void;
 }) {
   const [estado, setEstado] = useState<"idle" | "enviando">("idle");
-  const [activo, setActivo] = useState(true);
+  const [activo, setActivo] = useState(point ? point.isActive : true);
   const [error, setError] = useState("");
+
+  const initialCoords = point
+    ? `${Number(point.lat).toFixed(6)}, ${Number(point.lng).toFixed(6)}`
+    : coord
+      ? `${coord.lat.toFixed(6)}, ${coord.lng.toFixed(6)}`
+      : "";
+  const [coordsStr, setCoordsStr] = useState(initialCoords);
+
+  useEffect(() => {
+    if (point) {
+      setCoordsStr(`${Number(point.lat).toFixed(6)}, ${Number(point.lng).toFixed(6)}`);
+      setActivo(point.isActive);
+    } else if (coord) {
+      setCoordsStr(`${coord.lat.toFixed(6)}, ${coord.lng.toFixed(6)}`);
+      setActivo(true);
+    }
+  }, [coord, point]);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
     setEstado("enviando");
+
+    const parsed = parseGoogleMapsCoords(coordsStr);
+    if (!parsed) {
+      setError(
+        "Formato de coordenadas inválido. Ingresa 'latitud, longitud' (ej: 10.55, -67.4) o pega un enlace de Google Maps."
+      );
+      setEstado("idle");
+      return;
+    }
+
     const fd = new FormData(e.currentTarget);
     const data = {
       name: fd.get("name"),
@@ -264,12 +366,16 @@ function PuntoAyudaForm({
       description: fd.get("description"),
       contactPhone: fd.get("contactPhone") || undefined,
       contactEmail: fd.get("contactEmail") || undefined,
-      lat: coord.lat,
-      lng: coord.lng,
+      lat: parsed.lat,
+      lng: parsed.lng,
       isActive: activo,
     };
     try {
-      await apiCrearPuntoAyuda(data);
+      if (point) {
+        await apiActualizarPuntoAyuda(point.id, data);
+      } else {
+        await apiCrearPuntoAyuda(data);
+      }
       onDone();
     } catch (err) {
       setError((err as Error).message || "No se pudo guardar el punto.");
@@ -279,14 +385,27 @@ function PuntoAyudaForm({
 
   return (
     <form onSubmit={onSubmit} className="grid gap-5">
-      <p className="text-xs text-ink-subtle">
-        Coordenadas capturadas: {coord.lat.toFixed(5)}, {coord.lng.toFixed(5)}
-      </p>
+      <Field label="Coordenadas o Enlace de Google Maps" htmlFor="pa-coords" required>
+        <Input
+          id="pa-coords"
+          name="coords"
+          placeholder="Ej: 10.55, -67.4 o enlace de Google Maps"
+          value={coordsStr}
+          onChange={(e) => setCoordsStr(e.target.value)}
+          required
+        />
+      </Field>
       <Field label="Nombre" htmlFor="pa-name" required>
-        <Input id="pa-name" name="name" placeholder="Ej: Juan Pérez o Cruz Roja La Guaira" required />
+        <Input
+          id="pa-name"
+          name="name"
+          placeholder="Ej: Juan Pérez o Cruz Roja La Guaira"
+          defaultValue={point?.name}
+          required
+        />
       </Field>
       <Field label="Tipo" htmlFor="pa-type" required>
-        <Select id="pa-type" name="type" defaultValue="person" required>
+        <Select id="pa-type" name="type" defaultValue={point?.type || "person"} required>
           <option value="person">Persona particular</option>
           <option value="organization">Organización</option>
         </Select>
@@ -296,15 +415,22 @@ function PuntoAyudaForm({
           id="pa-description"
           name="description"
           placeholder="Qué tipo de ayuda ofrece (agua, refugio, atención médica...)"
+          defaultValue={point?.description}
           required
           rows={3}
         />
       </Field>
       <Field label="Teléfono / WhatsApp" htmlFor="pa-phone">
-        <Input id="pa-phone" name="contactPhone" placeholder="+58 412 555 0000" />
+        <Input id="pa-phone" name="contactPhone" placeholder="+58 412 555 0000" defaultValue={point?.contactPhone || ""} />
       </Field>
       <Field label="Correo" htmlFor="pa-email">
-        <Input id="pa-email" name="contactEmail" type="email" placeholder="contacto@ejemplo.org" />
+        <Input
+          id="pa-email"
+          name="contactEmail"
+          type="email"
+          placeholder="contacto@ejemplo.org"
+          defaultValue={point?.contactEmail || ""}
+        />
       </Field>
       <div>
         <label className="inline-flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-ink select-none">
@@ -323,7 +449,7 @@ function PuntoAyudaForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={estado === "enviando"}>
-          {estado === "enviando" ? "Guardando..." : "Agregar punto"}
+          {estado === "enviando" ? "Guardando..." : point ? "Guardar cambios" : "Agregar punto"}
         </Button>
       </div>
     </form>
