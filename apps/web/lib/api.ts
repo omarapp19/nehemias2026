@@ -4,6 +4,7 @@ import type {
   PublicExpense,
   PublicSupply,
   PublicPaymentInfo,
+  PublicHelpPoint,
   PaginationMeta,
 } from "@nehemias/core";
 import { INTERNAL_API_BASE } from "./config";
@@ -64,6 +65,7 @@ export interface HomeSnapshot {
   ultimosEgresos: PublicExpense[];
   captacion: PublicPaymentInfo[];
   ultimasFotos: { id: string; url: string; title: string | null; createdAt: string }[];
+  puntosAyuda: PublicHelpPoint[];
 }
 
 export const getHome = () => getJSON<HomeSnapshot>("/public/home");

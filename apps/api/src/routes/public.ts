@@ -19,6 +19,7 @@ import { listPublicExpenses } from "../services/expenses.js";
 import { listSupplies, listUrgentSupplies } from "../services/inventory.js";
 import { getBalances } from "../services/transparency.js";
 import { listActivePaymentInfo } from "../services/paymentInfo.js";
+import { listActiveHelpPoints } from "../services/helpPoints.js";
 import { getSettings } from "../services/settings.js";
 import { toPublicSupply } from "@nehemias/core";
 
@@ -46,17 +47,19 @@ publicRouter.get(
   "/home",
   asyncHandler(async (_req, res) => {
     const homeListQuery = { page: 1, limit: 20 } as const;
-    const [{ balances, exchangeRate }, urgentes, donaciones, egresos, captacion, fotos] = await Promise.all([
-      getBalances(),
-      listUrgentSupplies(),
-      listPublicVerifiedDonations(homeListQuery),
-      listPublicExpenses(homeListQuery),
-      listActivePaymentInfo(),
-      prisma.galleryPhoto.findMany({
-        take: 8,
-        orderBy: { createdAt: "desc" },
-      }),
-    ]);
+    const [{ balances, exchangeRate }, urgentes, donaciones, egresos, captacion, fotos, puntosAyuda] =
+      await Promise.all([
+        getBalances(),
+        listUrgentSupplies(),
+        listPublicVerifiedDonations(homeListQuery),
+        listPublicExpenses(homeListQuery),
+        listActivePaymentInfo(),
+        prisma.galleryPhoto.findMany({
+          take: 8,
+          orderBy: { createdAt: "desc" },
+        }),
+        listActiveHelpPoints(),
+      ]);
     res.json({
       balances,
       exchangeRate,
@@ -65,6 +68,7 @@ publicRouter.get(
       ultimosEgresos: egresos.data,
       captacion,
       ultimasFotos: fotos,
+      puntosAyuda,
     });
   }),
 );
@@ -131,6 +135,11 @@ publicRouter.get(
 publicRouter.get(
   "/captacion",
   asyncHandler(async (_req, res) => res.json({ captacion: await listActivePaymentInfo() })),
+);
+
+publicRouter.get(
+  "/puntos-ayuda",
+  asyncHandler(async (_req, res) => res.json({ puntosAyuda: await listActiveHelpPoints() })),
 );
 
 publicRouter.get(

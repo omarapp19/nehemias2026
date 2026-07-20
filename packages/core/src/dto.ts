@@ -264,3 +264,41 @@ export function toPublicPaymentInfo(p: PaymentInfoRow): PublicPaymentInfo {
     defaultCurrency: p.defaultCurrency,
   };
 }
+
+// ---------- PUNTOS DE AYUDA (público) ----------
+export interface HelpPointRow {
+  id: string;
+  name: string;
+  type: "person" | "organization";
+  description: string;
+  contactPhone: string | null;
+  contactEmail: string | null;
+  lat: DecimalLike;
+  lng: DecimalLike;
+  isActive: boolean;
+  createdAt: Date | string;
+}
+
+export interface PublicHelpPoint {
+  id: string;
+  name: string;
+  type: "person" | "organization";
+  description: string;
+  contactPhone: string | null;
+  contactEmail: string | null;
+  lat: number;
+  lng: number;
+}
+
+export function toPublicHelpPoint(h: HelpPointRow): PublicHelpPoint {
+  return {
+    id: h.id,
+    name: h.name,
+    type: h.type,
+    description: h.description,
+    contactPhone: h.contactPhone,
+    contactEmail: h.contactEmail,
+    lat: num(h.lat),
+    lng: num(h.lng),
+  };
+}

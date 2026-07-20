@@ -12,6 +12,7 @@ const TABLES = [
   "Supply",
   "Frente",
   "PaymentInfo",
+  "HelpPoint",
   "GalleryPhoto",
   "SystemSetting",
   "AdminUser",

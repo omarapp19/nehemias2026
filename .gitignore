@@ -42,3 +42,4 @@ apps/web/public/FOTOS/
 apps/web/public/fotos/
 *.mp4
 
+.superpowers/

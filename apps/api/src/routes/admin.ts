@@ -8,6 +8,8 @@ import {
   supplySchema,
   supplyUpdateSchema,
   paymentInfoSchema,
+  helpPointSchema,
+  helpPointUpdateSchema,
   adminDonationQuerySchema,
   adminExpenseQuerySchema,
   galleryQuerySchema,
@@ -44,6 +46,12 @@ import {
 } from "../services/paymentInfo.js";
 import { getSettings, updateSetting } from "../services/settings.js";
 import { syncGoogleSheets } from "../services/sheets.js";
+import {
+  listAllHelpPoints,
+  createHelpPoint,
+  updateHelpPoint,
+  deleteHelpPoint,
+} from "../services/helpPoints.js";
 
 export const adminRouter = Router();
 
@@ -297,11 +305,47 @@ adminRouter.get(
 adminRouter.put(
   "/settings",
   asyncHandler(async (req, res) => {
-    const { contact_phone, contact_email, contact_sede } = req.body;
+    const { contact_phone, contact_email, contact_sede, impact_zone_coords } = req.body;
     if (typeof contact_phone === "string") await updateSetting("contact_phone", contact_phone);
     if (typeof contact_email === "string") await updateSetting("contact_email", contact_email);
     if (typeof contact_sede === "string") await updateSetting("contact_sede", contact_sede);
+    if (typeof impact_zone_coords === "string")
+      await updateSetting("impact_zone_coords", impact_zone_coords);
     res.json({ settings: await getSettings() });
+  }),
+);
+
+// ---------- PUNTOS DE AYUDA (mapa) ----------
+adminRouter.get(
+  "/puntos-ayuda",
+  asyncHandler(async (_req, res) => {
+    res.json({ puntosAyuda: await listAllHelpPoints() });
+  }),
+);
+
+adminRouter.post(
+  "/puntos-ayuda",
+  asyncHandler(async (req, res) => {
+    const data = helpPointSchema.parse(req.body);
+    const puntoAyuda = await createHelpPoint(data);
+    res.status(201).json({ puntoAyuda });
+  }),
+);
+
+adminRouter.put(
+  "/puntos-ayuda/:id",
+  asyncHandler(async (req, res) => {
+    const data = helpPointUpdateSchema.parse(req.body);
+    const puntoAyuda = await updateHelpPoint(req.params.id, data);
+    res.json({ puntoAyuda });
+  }),
+);
+
+adminRouter.delete(
+  "/puntos-ayuda/:id",
+  asyncHandler(async (req, res) => {
+    await deleteHelpPoint(req.params.id);
+    res.json({ ok: true });
   }),
 );
 

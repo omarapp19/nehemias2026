@@ -203,3 +203,26 @@ export const paymentInfoSchema = z.object({
   defaultCurrency: z.enum(["USD", "VES"]).default("USD"),
 });
 export type PaymentInfoInput = z.infer<typeof paymentInfoSchema>;
+
+// — Punto de ayuda (mapa) —
+export const helpPointTypeEnum = z.enum(["person", "organization"], {
+  errorMap: () => ({ message: "Elige un tipo válido (persona u organización)." }),
+});
+
+export const helpPointSchema = z.object({
+  name: z.string().min(2, "Escribe el nombre."),
+  type: helpPointTypeEnum,
+  description: z.string().min(2, "Describe la ayuda que ofrece."),
+  contactPhone: z.string().max(60).optional(),
+  contactEmail: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.string().email("Escribe un correo válido.").optional(),
+  ),
+  lat: z.coerce.number().min(-90, "Latitud inválida.").max(90, "Latitud inválida."),
+  lng: z.coerce.number().min(-180, "Longitud inválida.").max(180, "Longitud inválida."),
+  isActive: zBool(true),
+});
+export type HelpPointInput = z.infer<typeof helpPointSchema>;
+
+export const helpPointUpdateSchema = helpPointSchema.partial();
+export type HelpPointUpdateInput = z.infer<typeof helpPointUpdateSchema>;

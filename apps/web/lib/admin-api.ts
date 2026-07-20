@@ -114,3 +114,11 @@ export const apiSyncSheets = () => apiJson("/admin/sync-sheets", "POST", {});
 export const apiSettings = () => apiGet("/admin/settings");
 export const apiActualizarSettings = (data: Record<string, string>) => apiJson("/admin/settings", "PUT", data);
 
+// — Puntos de ayuda (mapa) —
+export const apiPuntosAyuda = () => apiGet("/admin/puntos-ayuda");
+export const apiCrearPuntoAyuda = (data: unknown) => apiJson("/admin/puntos-ayuda", "POST", data);
+export const apiActualizarPuntoAyuda = (id: string, data: unknown) =>
+  apiJson(`/admin/puntos-ayuda/${id}`, "PUT", data);
+export const apiEliminarPuntoAyuda = (id: string) =>
+  apiJson(`/admin/puntos-ayuda/${id}`, "DELETE", {});
+
